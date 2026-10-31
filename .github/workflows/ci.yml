@@ -91,11 +91,11 @@ jobs:
           # 把 GUI 窗口最大化（仅 CI 截图用，不影响项目代码默认窗口化）
           Add-Type -Type 'using System; using System.Runtime.InteropServices; public class Win32 { [DllImport("user32.dll")] public static extern bool ShowWindow(IntPtr h, int n); [DllImport("user32.dll")] public static extern bool IsWindowVisible(IntPtr h); [DllImport("user32.dll")] public static extern bool EnumWindows(EnumWindowsProc lp, IntPtr l); [DllImport("user32.dll")] public static extern int GetWindowText(IntPtr h, System.Text.StringBuilder s, int n); [DllImport("user32.dll")] public static extern int GetWindowTextLength(IntPtr h); public delegate bool EnumWindowsProc(IntPtr h, IntPtr l); }'
           $hndls = New-Object System.Collections.ArrayList
-          $cb = [Win32+EnumWindowsProc]{ param($h, $l)
+          $cb = [Win32+EnumWindowsProc]{ param($h, $lparam)
               if ([Win32]::IsWindowVisible($h) -and [Win32]::GetWindowTextLength($h) -gt 0) {
                 $sb = New-Object System.Text.StringBuilder([Win32]::GetWindowTextLength($h) + 1)
                 [void][Win32]::GetWindowText($h, $sb, $sb.Capacity)
-                if ($sb.ToString() -like '*WinPatchKit*') { [void]$l.Add($h) }
+                if ($sb.ToString() -like '*WinPatchKit*') { [void]$hndls.Add($h) }
               }
               return $true }
           [void][Win32]::EnumWindows($cb, [IntPtr]::Zero)
