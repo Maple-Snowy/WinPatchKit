@@ -11,6 +11,12 @@ concurrency:
   group: ci-${{ github.ref }}
   cancel-in-progress: true
 
+# Windows runner 默认 stdout 是 cp1252，打印中文会 UnicodeEncodeError。
+# PYTHONUTF8=1 强制 Python 进入 UTF-8 模式（IO/文件系统编码全 UTF-8）。
+env:
+  PYTHONUTF8: "1"
+  PYTHONIOENCODING: "utf-8"
+
 jobs:
   # 快速失败关卡：跑单测 + GUI import 校验
   # 截图 job 依赖它，避免 GUI 有低级错误时白等渲染
