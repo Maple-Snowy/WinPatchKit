@@ -42,7 +42,7 @@ class SettingsPage:
         for f in self._fields.values():
             f.on_submit = lambda e: save_all()
 
-        save_btn = ft.Button("保存设置", on_click=save_all)
+        save_btn = ft.FilledButton("保存设置", on_click=save_all)
 
         return ft.Column(
             [
