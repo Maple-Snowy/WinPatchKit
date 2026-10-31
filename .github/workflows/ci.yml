@@ -40,7 +40,7 @@ jobs:
 
       - name: GUI 模块导入校验（不渲染，仅 import + 控件树构造）
         run: |
-          python -c "import gui.entry, gui.services, gui.pages.home, gui.pages.module, gui.pages.settings, gui.widgets.module_card, gui.widgets.report_view, gui.widgets.status_badge; print('GUI import OK')"
+          python -c "import gui.app, gui.navigation, gui.titlebar, gui.screenshot, gui.services, gui.pages.home, gui.pages.module, gui.pages.settings, gui.widgets.module_card, gui.widgets.report_view, gui.widgets.status_badge; print('GUI import OK')"
         shell: pwsh
 
   # 截图 job：真实渲染 GUI 并截图回传
@@ -72,7 +72,7 @@ jobs:
           # 150 秒后进程自动退出兜底（要逐页截 3 张，预留足够时间；正常远早于此截完）
           $env:WINPATCHKIT_GUI_AUTO_CLOSE_AFTER = "150"
 
-          # 截图驱动目录：GUI 内 driver 监听它做切页握手（见 gui/entry.py _start_screenshot_driver）
+          # 截图驱动目录：GUI 内 driver 监听它做切页握手（见 gui/screenshot.py start_screenshot_driver）
           $env:WINPATCHKIT_GUI_SCREENSHOT_DIR = (Join-Path $PWD "shot")
 
           # 后台启动 GUI，记录进程，便于最后清理

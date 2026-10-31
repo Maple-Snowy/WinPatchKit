@@ -145,7 +145,7 @@ class HomePage:
              on_import=None):
         self.page = page
         self.on_changed = on_changed   # 预留
-        self.on_goto = on_goto         # (index) -> 跳到对应 tab（entry 注入）
+        self.on_goto = on_goto         # (index) -> 跳到对应 tab（app 注入）
         self.on_import = on_import     # 触发导入（切到模组页并弹导入框）
         self.infos = []
         self.stat_total = ft.Text("0", size=20, weight=ft.FontWeight.BOLD)
@@ -289,7 +289,7 @@ class HomePage:
         return ft.Column([row], spacing=0,
                          scroll=ft.ScrollMode.AUTO, expand=True)
 
-    # ---- 数据刷新（切回主页时由 entry 调用）----
+    # ---- 数据刷新（切回主页时由 app 调用）----
     def reload(self):
         self.infos = services.list_modules()
         self.stat_total.value = str(len(self.infos))

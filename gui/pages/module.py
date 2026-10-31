@@ -18,8 +18,8 @@ from ..widgets.status_badge import status_badge
 class ModulePage:
     def __init__(self, page: ft.Page, on_changed, file_picker: ft.FilePicker):
         self.page = page
-        self.on_changed = on_changed        # 设置变更 / 数据刷新后通知 entry
-        self.file_picker = file_picker      # 目录选择（复用 entry 的 FilePicker 实例）
+        self.on_changed = on_changed        # 设置变更 / 数据刷新后通知 app
+        self.file_picker = file_picker      # 目录选择（复用 app 的 FilePicker 实例）
         self.infos = []
         self.widgets = {}                   # index -> (checkbox, badge_box, detail_text)
         self.content = self._build()

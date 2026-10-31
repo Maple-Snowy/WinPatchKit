@@ -159,7 +159,7 @@ def cmd_path(args) -> int:
 def cmd_gui(args) -> int:
     """启动 Flet GUI（需要安装 flet-desktop / flet）。"""
     try:
-        from gui.entry import run as gui_run
+        from gui.app import run as gui_run
     except ImportError as e:
         print(f"错误: 缺少 GUI 依赖（{e}）\n"
               f"请先安装: pip install flet-desktop", file=sys.stderr)
