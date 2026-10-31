@@ -16,7 +16,8 @@ from .pages.import_page import ImportPage
 def main(page: ft.Page):
     page.title = theme.APP_TITLE
     page.padding = 0
-    page.theme_mode = ft.ThemeMode.SYSTEM
+    page.theme = ft.Theme(color_scheme_seed="#2E8B57")
+    page.theme_mode = ft.ThemeMode.DARK
     try:
         page.window.width = 940
         page.window.height = 660
@@ -74,7 +75,7 @@ def main(page: ft.Page):
     # 不再手搓 Container+Row 伪造顶栏。
     page.appbar = ft.AppBar(
         title=ft.Row(
-            [ft.Icon(ft.Icons.BUILD_CIRCLE, color=ft.Colors.BLUE_600),
+            [ft.Icon(ft.Icons.BUILD_CIRCLE, color=ft.Colors.PRIMARY),
              ft.Column(
                  [ft.Text(theme.APP_TITLE, size=18,
                           weight=ft.FontWeight.BOLD),

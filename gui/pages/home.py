@@ -158,7 +158,7 @@ class HomePage:
             content=ft.Column(
                 [ft.ListTile(
                      leading=ft.Icon(ft.Icons.DESKTOP_WINDOWS, size=26,
-                                     color=ft.Colors.BLUE_600),
+                                     color=ft.Colors.PRIMARY),
                      title=ft.Text("系统信息", size=18,
                                    weight=ft.FontWeight.BOLD)),
                  ft.Divider(height=8),
