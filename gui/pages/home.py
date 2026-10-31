@@ -155,7 +155,51 @@ class HomePage:
                                     color=ft.Colors.GREEN_600)
         self.stat_missing = ft.Text("0", size=20, weight=ft.FontWeight.BOLD,
                                     color=ft.Colors.AMBER_700)
+        # 环境就绪度：三行检查（管理员 / 基准目录 / 可应用模块），图标+文案，
+        # 值来自已有数据（_is_admin / get_settings / 探测 ready 数），不新增探测。
+        self.chk_admin = self._mk_check_row()
+        self.chk_base  = self._mk_check_row()
+        self.chk_ready = self._mk_check_row()
         self.content = self._build()
+        self._update_checklist()
+
+    # ---- 环境就绪度 ----
+    def _mk_check_row(self) -> ft.Row:
+        """一行「图标 + 文案」就绪检查项。icon/text 挂在 row._icon/_text 上供更新。"""
+        icon = ft.Icon(ft.Icons.CANCEL_OUTLINED, size=18, color=ft.Colors.GREY_500)
+        text = ft.Text("", size=13, color=ft.Colors.GREY_300)
+        row = ft.Row([icon, text], spacing=8,
+                     vertical_alignment=ft.CrossAxisAlignment.CENTER)
+        row._icon, row._text = icon, text
+        return row
+
+    def _set_check(self, row: ft.Row, state, label: str):
+        """state: True=就绪 / False=未就绪 / None=检测中。"""
+        icon, text = row._icon, row._text
+        if state is None:
+            icon.icon, icon.color = ft.Icons.CANCEL_OUTLINED, ft.Colors.GREY_500
+            text.color = ft.Colors.GREY_500
+        elif state:
+            icon.icon, icon.color = ft.Icons.CHECK_CIRCLE, ft.Colors.GREEN_600
+            text.color = ft.Colors.GREY_300
+        else:
+            icon.icon, icon.color = ft.Icons.CANCEL, ft.Colors.ERROR
+            text.color = ft.Colors.GREY_300
+        text.value = label
+
+    def _update_checklist(self):
+        """刷新三项检查（管理员 / 基准目录 / 可应用模块）。
+        管理员、基准目录即时可算；可应用项置「检测中」，由探测完成后回填。"""
+        admin = _is_admin()
+        self._set_check(self.chk_admin, admin,
+                        "管理员权限" if admin else "非管理员运行")
+        try:
+            base = (services.get_settings().get("target_base_dir") or "").strip()
+        except Exception:
+            base = ""
+        self._set_check(self.chk_base, bool(base),
+                        "基准目录已设置" if base else "未设基准目录")
+        self._set_check(self.chk_ready, None, "检测可应用模块…")
 
     # ---- 左卡片：系统信息（静态）----
     def _build_system_card(self) -> ft.Control:
@@ -215,9 +259,15 @@ class HomePage:
                        stat_cell(self.stat_patched, "已打补丁"),
                        stat_cell(self.stat_missing, "目标缺失")],
                       vertical_alignment=ft.CrossAxisAlignment.CENTER),
+                   ft.Divider(height=8),
+                   # 环境就绪度：三行检查（管理员 / 基准目录 / 可应用模块），
+                   # 填满右下角空白并回答"现在能不能打补丁"。
+                   ft.Container(
+                       content=ft.Column(
+                           [self.chk_admin, self.chk_base, self.chk_ready],
+                           spacing=6),
+                       padding=ft.Padding.symmetric(horizontal=8, vertical=2)),
                    ft.Divider(height=10),
-                   # 底部操作区：套 Container 加内边距，避免按钮贴到 Card 的
-                   # 12px 圆角边框上（Card 本身无内建 padding，需手动补）。
                    ft.Container(
                        content=ft.Row([manage_btn,
                                        ft.Container(width=12),
@@ -268,6 +318,8 @@ class HomePage:
             self.stat_ready.value = str(ready)
             self.stat_patched.value = str(patched)
             self.stat_missing.value = str(missing)
+            self._set_check(self.chk_ready, ready > 0,
+                            f"{ready} 个可应用模块" if ready > 0 else "暂无可应用模块")
             self.page.update()
 
         self.page.run_thread(run)
