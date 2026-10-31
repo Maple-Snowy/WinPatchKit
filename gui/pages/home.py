@@ -141,10 +141,12 @@ def collect_system_info() -> list:
 class HomePage:
     """起始页：左系统信息 / 右模块概览双卡片。模块概览支持刷新。"""
 
-    def __init__(self, page: ft.Page, on_changed=None, on_goto=None):
+    def __init__(self, page: ft.Page, on_changed=None, on_goto=None,
+             on_import=None):
         self.page = page
         self.on_changed = on_changed   # 预留
         self.on_goto = on_goto         # (index) -> 跳到对应 tab（entry 注入）
+        self.on_import = on_import     # 触发导入（切到模组页并弹导入框）
         self.infos = []
         self.stat_total = ft.Text("0", size=20, weight=ft.FontWeight.BOLD)
         self.stat_ready = ft.Text("0", size=20, weight=ft.FontWeight.BOLD,
@@ -194,8 +196,8 @@ class HomePage:
             ft.Row([ft.Icon(ft.Icons.LIST_ALT), ft.Text("  管理模块")]),
             expand=True, on_click=lambda e: self._goto(1))
         import_btn = ft.Button(
-            ft.Row([ft.Icon(ft.Icons.DRIVE_FILE_MOVE), ft.Text("  导入新模块")]),
-            expand=True, on_click=lambda e: self._goto(2))
+            ft.Row([ft.Icon(ft.Icons.FILE_DOWNLOAD), ft.Text("  导入新模块")]),
+            expand=True, on_click=lambda e: self._import())
 
         return ft.Card(
             content=ft.Column(
@@ -268,3 +270,7 @@ class HomePage:
     def _goto(self, index: int):
         if self.on_goto:
             self.on_goto(index)
+
+    def _import(self):
+        if self.on_import:
+            self.on_import()

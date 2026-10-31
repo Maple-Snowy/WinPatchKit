@@ -10,7 +10,6 @@ from . import theme
 from .pages.home import HomePage
 from .pages.module import ModulePage
 from .pages.settings import SettingsPage
-from .pages.import_page import ImportPage
 
 
 def main(page: ft.Page):
@@ -38,13 +37,17 @@ def main(page: ft.Page):
     def goto_tab(idx):
         _refs["switch"](idx)
 
-    home = HomePage(page, on_changed, on_goto=goto_tab)
+    def do_import():
+        # 主页「导入新模块」：切到模组页（idx=1）并弹导入框
+        _refs["switch"](1)
+        _refs["module"]._show_import_dialog()
+
+    home = HomePage(page, on_changed, on_goto=goto_tab, on_import=do_import)
     module_page = ModulePage(page, on_changed, file_picker)
-    import_page = ImportPage(page, on_changed, file_picker)
     settings_page = SettingsPage(page, on_changed)
     _refs["module"] = module_page
 
-    pages = [home, module_page, import_page, settings_page]
+    pages = [home, module_page, settings_page]
     content = ft.Container(content=home.content, expand=True,
                            padding=ft.Padding.all(16))
 
@@ -56,9 +59,6 @@ def main(page: ft.Page):
             ft.NavigationBarDestination(
                 icon=ft.Icons.LIST_OUTLINED, selected_icon=ft.Icons.LIST,
                 label="模块"),
-            ft.NavigationBarDestination(
-                icon=ft.Icons.DRIVE_FILE_MOVE_OUTLINED,
-                selected_icon=ft.Icons.DRIVE_FILE_MOVE, label="导入"),
             ft.NavigationBarDestination(
                 icon=ft.Icons.SETTINGS_OUTLINED,
                 selected_icon=ft.Icons.SETTINGS, label="设置"),

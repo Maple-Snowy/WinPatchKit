@@ -6,6 +6,7 @@
   3) 模块卡片列表（状态徽章 + 明细）
   4) 应用结果区（apply 后出现）
 """
+import asyncio
 import flet as ft
 
 from .. import services
@@ -54,6 +55,9 @@ class ModulePage:
         refresh_btn = ft.TextButton(
             ft.Row([ft.Icon(ft.Icons.REFRESH), ft.Text("  刷新状态")]),
             on_click=lambda e: self.probe())
+        import_btn = ft.Button(
+            ft.Row([ft.Icon(ft.Icons.FILE_DOWNLOAD), ft.Text("  导入配置")]),
+            on_click=lambda e: self._show_import_dialog())
         self.tool_row = ft.Container(
             content=ft.Row(
                 [ft.TextButton("全选", on_click=lambda e: self._set_all(True)),
@@ -61,6 +65,7 @@ class ModulePage:
                  self.sel_count,
                  ft.Container(expand=True),
                  refresh_btn,
+                 import_btn,
                  self.apply_btn],
                 vertical_alignment=ft.CrossAxisAlignment.CENTER),
             padding=ft.Padding.symmetric(horizontal=4, vertical=2))
@@ -134,6 +139,72 @@ class ModulePage:
             page.update()
 
         page.run_thread(run)
+
+    # ---------------------------------------------------------------- 导入
+    def _show_import_dialog(self):
+        """弹官方对话框让用户选导入方式：选 .toml 文件 / 便捷导入。"""
+        pick_btn = ft.TextButton(
+            ft.Row([ft.Icon(ft.Icons.FOLDER_OPEN), ft.Text("  选择 .toml 文件")]),
+            on_click=self._pick)
+        auto_btn = ft.TextButton(
+            ft.Row([ft.Icon(ft.Icons.CLOUD_UPLOAD_OUTLINED),
+                    ft.Text("  便捷导入（扫描工具/设置目录）")]),
+            on_click=self._auto)
+        dlg = ft.AlertDialog(
+            title=ft.Text("导入模块配置"),
+            content=ft.Column(
+                [ft.Text(
+                     "· 选文件：挑选一个或多个 .toml，复制进 configs/\n"
+                     "· 便捷导入：扫描工具同级目录 / 便捷导入目录\n"
+                     "· 以模块ID判重：同 id 已存在则覆盖，否则新增",
+                     size=13, color=ft.Colors.GREY_400),
+                 ft.Container(height=10),
+                 ft.Row([pick_btn, auto_btn], spacing=12, wrap=True)],
+                spacing=0))
+        self.page.show_dialog(dlg)
+
+    def _pop(self):
+        try:
+            self.page.pop_dialog()
+        except Exception:
+            pass
+
+    async def _pick(self, e):
+        self._pop()
+        try:
+            files = await self.file_picker.pick_files(
+                allow_multiple=True,
+                dialog_title="选择模块配置",
+                allowed_extensions=["toml"])
+        except Exception:
+            return
+        if not files:
+            return
+        done, failed = services.import_files([f.path for f in files])
+        self._finish_import(done, failed)
+
+    async def _auto(self, e):
+        self._pop()
+        try:
+            names = await asyncio.to_thread(services.auto_import)
+            done = [(n, "已搬入 configs/") for n in names]
+            failed = []
+        except Exception as ex:
+            done, failed = [], [("便捷导入", str(ex))]
+        if not done:
+            done = [("（无新配置）", "目标目录里没有可导入的 .toml")]
+        self._finish_import(done, failed)
+
+    def _finish_import(self, done, failed):
+        n_ok = sum(1 for d in done if d[0] != "（无新配置）")
+        if failed:
+            msg = f"导入完成，{n_ok} 成功 / {len(failed)} 失败"
+        else:
+            msg = f"已导入 {n_ok} 个模块"
+        self.page.show_dialog(ft.SnackBar(ft.Text(msg)))
+        self.reload()
+        if self.on_changed:
+            self.on_changed()
 
     # ---------------------------------------------------------------- 勾选
     def selected_infos(self):
