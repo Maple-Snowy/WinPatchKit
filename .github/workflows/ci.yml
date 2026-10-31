@@ -1,8 +1,9 @@
 name: CI
 
-# 仅手动触发（在 GitHub Actions 页面点 Run workflow 执行），
-# 推送 / PR 不自动跑。
+# push 自动触发（标题 = commit message）；workflow_dispatch 保留手动兜底。
 on:
+  push:
+    branches: [main]
   workflow_dispatch:
 
 # 同一分支并发时取消旧的，省资源
