@@ -69,8 +69,11 @@ jobs:
       - name: 启动 GUI 并截图
         shell: pwsh
         run: |
-          # 60 秒后进程自动退出，确保 CI 不会挂住（窗口先渲染，截图在它关闭前完成）
-          $env:WINPATCHKIT_GUI_AUTO_CLOSE_AFTER = "60"
+          # 150 秒后进程自动退出兜底（要逐页截 3 张，预留足够时间；正常远早于此截完）
+          $env:WINPATCHKIT_GUI_AUTO_CLOSE_AFTER = "150"
+
+          # 截图驱动目录：GUI 内 driver 监听它做切页握手（见 gui/entry.py _start_screenshot_driver）
+          $env:WINPATCHKIT_GUI_SCREENSHOT_DIR = (Join-Path $PWD "shot")
 
           # 后台启动 GUI，记录进程，便于最后清理
           $proc = Start-Process -FilePath "python" -ArgumentList "main.py" `
@@ -109,18 +112,40 @@ jobs:
             Write-Host "!! 未找到 WinPatchKit 窗口，跳过最大化"
           }
 
-          # 用 .NET 截整个虚拟屏
+          # 加载 .NET 截图依赖，定义截屏函数（截整个虚拟屏到指定文件名）
           Add-Type -AssemblyName System.Windows.Forms
           Add-Type -AssemblyName System.Drawing
-          $screen = [System.Windows.Forms.SystemInformation]::VirtualScreen
-          $bmp = New-Object System.Drawing.Bitmap($screen.Width, $screen.Height)
-          $g = [System.Drawing.Graphics]::FromImage($bmp)
-          $g.CopyFromScreen($screen.Location, [System.Drawing.Point]::Empty, $screen.Size)
-          $bmp.Save("gui_screenshot.png")
-          $g.Dispose(); $bmp.Dispose()
-          Write-Host "已保存 gui_screenshot.png (${screen.Width}x${screen.Height})"
+          function Save-Screen([string]$name) {
+            $screen = [System.Windows.Forms.SystemInformation]::VirtualScreen
+            $bmp = New-Object System.Drawing.Bitmap($screen.Width, $screen.Height)
+            $g = [System.Drawing.Graphics]::FromImage($bmp)
+            $g.CopyFromScreen($screen.Location, [System.Drawing.Point]::Empty, $screen.Size)
+            $bmp.Save((Join-Path $PWD $name))
+            $g.Dispose(); $bmp.Dispose()
+            Write-Host "已保存 $name (${screen.Width}x${screen.Height})"
+          }
 
-          # 无论成败都清理 GUI 进程（若还没自动退出）
+          # 逐页截图：共 3 个页面（主页 / 模块 / 设置）
+          # 每页：写 _cmd 让 GUI 切页 → 轮询 _ack 确认已切 → 截一张
+          $shotDir = $env:WINPATCHKIT_GUI_SCREENSHOT_DIR
+          for ($i = 0; $i -le 2; $i++) {
+            $cmdF = Join-Path $shotDir "_cmd"
+            $ackF = Join-Path $shotDir "_ack"
+            Remove-Item $ackF -ErrorAction SilentlyContinue
+            Set-Content -Path $cmdF -Value "$i"
+            $switched = $false
+            for ($w = 0; $w -lt 24; $w++) {
+              if (Test-Path $ackF) { $switched = $true; break }
+              Start-Sleep -Milliseconds 500
+            }
+            if (-not $switched) { Write-Host "!! 页面 $i 切页超时，仍尝试截屏" }
+            else { Write-Host "页面 $i 已切换" }
+            Start-Sleep -Milliseconds 400   # 渲染再稳一点
+            Save-Screen ("gui_screenshot_p{0}.png" -f $i)
+          }
+
+          # 通知 driver 退出 + 清理 GUI 进程（若还没自动退出）
+          Set-Content -Path (Join-Path $shotDir "_stop") -Value "1"
           if (-not $proc.HasExited) {
             try { Stop-Process -Id $proc.Id -Force } catch { }
           }
@@ -131,7 +156,9 @@ jobs:
         with:
           name: gui-screenshot
           path: |
-            gui_screenshot.png
+            gui_screenshot_p0.png
+            gui_screenshot_p1.png
+            gui_screenshot_p2.png
             gui_stdout.log
             gui_stderr.log
           if-no-files-found: warn

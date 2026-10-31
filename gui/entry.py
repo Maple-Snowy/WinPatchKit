@@ -114,6 +114,11 @@ def main(page: ft.Page):
         home.reload()
     page.run_thread(_first_load)
 
+    # CI 截图驱动：设了 WINPATCHKIT_GUI_SCREENSHOT_DIR 时激活。
+    # 监听该目录下 _cmd 文件（内容为 tab 索引），读到即切换页面并写 _ack，
+    # 由 CI 轮询 _ack 确认切页完成后再截屏。仅在 CI 环境生效，本地无此变量则空跑。
+    _start_screenshot_driver(page, switch_to)
+
 
 def _toggle_theme(page: ft.Page):
     page.theme_mode = (ft.ThemeMode.LIGHT
@@ -121,6 +126,58 @@ def _toggle_theme(page: ft.Page):
                        else ft.ThemeMode.DARK)
     _apply_titlebar(page.title, page.theme_mode == ft.ThemeMode.DARK)
     page.update()
+
+
+def _start_screenshot_driver(page: ft.Page, switch_to):
+    """CI 截图驱动：监听命令文件，切换页面供 CI 逐页截屏。
+
+    仅当环境变量 WINPATCHKIT_GUI_SCREENSHOT_DIR 已设置时激活（本地无此变量则空跑）。
+    握手协议（目录内文件）：
+      _cmd  CI 写入，内容为 tab 索引（0/1/2）
+      _ack  驱动切页并渲染后写入，内容为索引；CI 轮询到它才截屏
+      _stop CI 写入后驱动退出
+    切换用 page.run_task（事件循环内），保证 page.update() 合法。
+    """
+    import os
+    shot_dir = os.environ.get("WINPATCHKIT_GUI_SCREENSHOT_DIR", "").strip()
+    if not shot_dir:
+        return
+
+    async def _loop():
+        import asyncio
+        os.makedirs(shot_dir, exist_ok=True)
+        cmd_f  = os.path.join(shot_dir, "_cmd")
+        ack_f  = os.path.join(shot_dir, "_ack")
+        stop_f = os.path.join(shot_dir, "_stop")
+        while True:
+            if os.path.exists(stop_f):
+                break
+            if os.path.exists(cmd_f):
+                idx = 0
+                try:
+                    with open(cmd_f, "r", encoding="utf-8") as f:
+                        idx = int(f.read().strip())
+                except Exception:
+                    pass
+                for p in (cmd_f, ack_f):
+                    try:
+                        os.remove(p)
+                    except OSError:
+                        pass
+                try:
+                    switch_to(idx)
+                except Exception:
+                    pass
+                await asyncio.sleep(1.2)   # 等切换 + 内容渲染稳定
+                try:
+                    with open(ack_f, "w", encoding="utf-8") as f:
+                        f.write(str(idx))
+                except OSError:
+                    pass
+            else:
+                await asyncio.sleep(0.2)
+
+    page.run_task(_loop)
 
 
 # ── DWM 标题栏适配 ──────────────────────────────────────────
