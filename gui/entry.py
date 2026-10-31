@@ -54,10 +54,12 @@ def main(page: ft.Page):
     nav = ft.NavigationBar(
         destinations=[
             ft.NavigationBarDestination(
-                icon=ft.Icons.INFO_OUTLINED, selected_icon=ft.Icons.INFO,
+                icon=ft.Icons.HOME_OUTLINED,
+                selected_icon=ft.Icons.HOME,
                 label="主页"),
             ft.NavigationBarDestination(
-                icon=ft.Icons.LIST_OUTLINED, selected_icon=ft.Icons.LIST,
+                icon=ft.Icons.INVENTORY_2_OUTLINED,
+                selected_icon=ft.Icons.INVENTORY_2,
                 label="模块"),
             ft.NavigationBarDestination(
                 icon=ft.Icons.SETTINGS_OUTLINED,
