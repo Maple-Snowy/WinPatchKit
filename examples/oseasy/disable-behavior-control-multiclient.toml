@@ -1,0 +1,19 @@
+# =============================================================
+#  05 禁用行为管控（MultiClient）  [学生端]
+#  源: OsEasyPatchTool.py EXTRA_TARGETS key=mc_behavior (loc_type=offset)
+#  目标: MultiClient.exe  (MD5 b8bb9b809e8f45918f6759d4cb51f5b0, 1189376 B)
+#  原理: patch 行为管控入口 0x18BA0，教师端下发的网络/USB/程序管控
+#        在学生机失效。屏幕广播与键鼠锁保留。
+#  定位: 固定文件偏移 0x18BA0（函数入口 55 8b ec -> xor eax,eax; ret）
+# =============================================================
+
+[module]
+id = "disable-behavior-control-multiclient"
+version = "1.0.0"
+name = "禁用行为管控（MultiClient）"
+target = "MultiClient.exe"
+
+[[module.patches]]
+id    = "nop_behavior_forward"
+where = { type = "file_offset", value = "0x18BA0" }
+write = { type = "raw", bytes = "31c0c3", expect = "558bec" }

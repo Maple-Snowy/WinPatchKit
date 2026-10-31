@@ -1,0 +1,20 @@
+# =============================================================
+#  11 双开教师端 / 学生端  —— Teacher 端  [双端]
+#  源: OsEasyPatchTool.py EXTRA_TARGETS key=duo_open (files[0] Teacher.exe)
+#  目标: Teacher.exe
+#  原理: patch Teacher.exe 0x5B9420 的互斥检测原语（OpenEventW 恒返回 0），
+#        解除「检测到另一端已启动即退出」。与 Student 端(12)成对使用。
+#  定位: 锚点命中互斥检测入口 + sanity（入口后 0x40 内须见 ff15）
+#  备份: 专属后缀 .duo_open.bak（OsEasy 原设计）
+# =============================================================
+
+[module]
+id = "dual-launch-teacher"
+version = "1.0.0"
+name = "双开教师端/学生端（Teacher）"
+target = "Teacher.exe"
+
+[[module.patches]]
+id    = "teacher_mutex"
+where = { type = "anchor", pattern = "558bec83ec0c894df48d", delta = 0, sanity_window = "0x40", sanity_pattern = "ff15" }
+write = { type = "raw", bytes = "31c0c3", expect = "558bec" }

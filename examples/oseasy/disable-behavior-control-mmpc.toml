@@ -1,0 +1,20 @@
+# =============================================================
+#  04 禁用行为管控 · 文件 patch  [MMPC.exe · 需停服务]
+#  源: OsEasyPatchTool.py MMPC_FILE
+#  目标: MMPC.exe  (MD5 4ea4493c99b2ecb52f6ecce57048be97, 551424 B)
+#  原理: patch FUN_0041b960 入口，教师端下发的断网/USB/应用限制
+#        管控指令不再执行。持久方案，需先 `sc stop MMPC`，
+#        patch 后 `sc start MMPC` 生效。
+#  定位: 14B 唯一锚点（抗版本漂移，不能用短锚点，11B 会命中 56 处）
+# =============================================================
+
+[module]
+id = "disable-behavior-control-mmpc"
+version = "1.0.0"
+name = "禁用行为管控（MMPC 服务，需停服务）"
+target = "MMPC.exe"
+
+[[module.patches]]
+id    = "nop_ctrl_dispatch"
+where = { type = "anchor", pattern = "558bec51894dfc8b450850e8d068", delta = 0 }
+write = { type = "raw", bytes = "31c0c3", expect = "558bec" }

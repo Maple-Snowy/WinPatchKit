@@ -1,0 +1,19 @@
+# =============================================================
+#  06 禁用屏幕广播（MultiClient）  [学生端]
+#  源: OsEasyPatchTool.py EXTRA_TARGETS key=mc_screen
+#  目标: MultiClient.exe  (MD5 b8bb9b809e8f45918f6759d4cb51f5b0, 1189376 B)
+#  原理: patch 屏幕广播入口，画面不再被截取/采集。
+#        与「窗口化」互斥（二选一）。
+#  定位: 锚点命中屏幕广播入口函数
+# =============================================================
+
+[module]
+id = "disable-screen-broadcast-multiclient"
+version = "1.0.0"
+name = "禁用屏幕广播（MultiClient）"
+target = "MultiClient.exe"
+
+[[module.patches]]
+id    = "nop_screen_broadcast"
+where = { type = "anchor", pattern = "558bec51894dfc8b4dfc83c13ce84e", delta = 0 }
+write = { type = "raw", bytes = "31c0c3", expect = "558bec" }

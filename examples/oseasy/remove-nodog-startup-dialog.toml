@@ -1,0 +1,20 @@
+# =============================================================
+#  02 消除“未找到加密狗”启动弹窗  [Teacher.exe]
+#  源: OsEasyPatchTool.py SOLUTIONS key=nodog_dialog
+#  目标: Teacher.exe  (MD5 7b999b972ea50b540c44800be1e4e465, 3732480 B)
+#  原理: NOP 掉启动时按狗状态弹窗的分发函数 FUN_0055a900 入口。
+#        入口改 xor eax,eax; ret。仅消除弹窗表象，不解除点数限制，
+#        建议配合 01_max_connect 使用。
+#  定位: 锚点 FUN_0055a900 入口 + SEH push 0x18667f
+# =============================================================
+
+[module]
+id = "remove-nodog-startup-dialog"
+version = "1.0.0"
+name = "消除“未找到加密狗”启动弹窗"
+target = "Teacher.exe"
+
+[[module.patches]]
+id    = "ret_entry"
+where = { type = "anchor", pattern = "558bec6aff687f18", delta = 0 }
+write = { type = "raw", bytes = "31c0c3", expect = "558bec" }

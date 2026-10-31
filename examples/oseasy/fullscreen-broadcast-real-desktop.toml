@@ -1,0 +1,22 @@
+# =============================================================
+#  09 全屏广播桌面切换修复（切真实桌面）  [学生端]
+#  源: OsEasyPatchTool.py EXTRA_TARGETS key=mc_fullscreen_desktop
+#  目标: MultiClient.exe  (MD5 b8bb9b809e8f45918f6759d4cb51f5b0, 1189376 B)
+#  原理: 修复旧方案（窗口化+免锁）的纯黑背景：patch 广播类型处理函数
+#        FUN_0041a3b0 的全屏分支，把 SwitchDesktop(this+0x108)
+#        （切到纯黑 NetTeachingDesktop）改为 SwitchDesktop(this+0x10c)
+#        （切真实桌面）。1 字节改动（disp +0x108→+0x10c）。
+#        需与「窗口化 ScreenRender(07)」配套才可见效。
+#  定位: 锚点命中 disp 字节 0x08，改写为 0x0c
+# =============================================================
+
+[module]
+id = "fullscreen-broadcast-real-desktop"
+version = "1.0.0"
+name = "全屏广播切换真实桌面（MultiClient）"
+target = "MultiClient.exe"
+
+[[module.patches]]
+id    = "switch_real_desktop"
+where = { type = "anchor", pattern = "0801000051ff15dcb34e008d4d40e846", delta = 0 }
+write = { type = "raw", bytes = "0c", expect = "08" }

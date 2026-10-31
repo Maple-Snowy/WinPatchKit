@@ -1,0 +1,20 @@
+# =============================================================
+#  13 拦截远程关机 / 重启  [学生端]
+#  源: OsEasyPatchTool.py EXTRA_TARGETS key=noshutdown
+#  目标: Student.exe  (MD5 326a77edb4b5d03eaeeb7dafa2d9e08e, 2161152 B)
+#  原理: patch Student.exe 0x4A9660（ExitWindowsEx 调用函数）入口，
+#        教师端远程关机/重启指令在学生机失效。一个点封两个动作。
+#  定位: 锚点命中关机/重启函数入口（入口 55 8b ec -> xor eax,eax; ret）
+#  备份: 专属后缀 .noshutdown.bak（OsEasy 原设计）
+# =============================================================
+
+[module]
+id = "block-remote-shutdown-restart"
+version = "1.0.0"
+name = "拦截远程关机/重启（Student）"
+target = "Student.exe"
+
+[[module.patches]]
+id    = "nop_shutdown_reboot"
+where = { type = "anchor", pattern = "558bec81ec2c010000", delta = 0 }
+write = { type = "raw", bytes = "31c0c3", expect = "558bec" }

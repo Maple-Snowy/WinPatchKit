@@ -1,0 +1,19 @@
+# =============================================================
+#  14 停止截屏发送（StudentLogic）  [学生端]
+#  源: OsEasyPatchTool.py EXTRA_TARGETS key=screencap_nop
+#  目标: StudentLogic.dll  (MD5 0b79c3f65fff8c74ca74776fc730af76, 2887680 B)
+#  原理: patch StudentLogic.dll 截图流水线 0x1007D650 入口，截屏发送
+#        完全停止（教师端画面定格、状态灯仍在线）。
+#  定位: 锚点命中截图流水线入口（入口 55 8b ec -> xor eax,eax; ret）
+# =============================================================
+
+[module]
+id = "stop-screenshot-upload"
+version = "1.0.0"
+name = "停止截屏发送（StudentLogic）"
+target = "StudentLogic.dll"
+
+[[module.patches]]
+id    = "nop_screencap_pipeline"
+where = { type = "anchor", pattern = "558bec6aff688b92", delta = 0 }
+write = { type = "raw", bytes = "31c0c3", expect = "558bec" }

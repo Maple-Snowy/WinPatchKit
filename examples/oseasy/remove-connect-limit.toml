@@ -1,0 +1,20 @@
+# =============================================================
+#  01 解除学生机连接数上限  [治本·推荐]
+#  源: OsEasyPatchTool.py SOLUTIONS key=max_connect
+#  目标: MainLogic.dll  (MD5 022b8f1be58b9c02a0d4f0022d038f0f, 1684480 B)
+#  原理: NOP 掉『当前连接数 ≥ 授权点数则拒绝』判定（NodeManager
+#        m_nCurConnectsOnline）。命中『无狗最多 5 台』根因，
+#        学生机可连任意多台，独立于加密狗逻辑。
+#  定位: 锚点 cmp max,cur; jge 拒绝；jge 在锚点内偏移 6
+# =============================================================
+
+[module]
+id = "remove-connect-limit"
+version = "1.0.0"
+name = "移除学生机连接数限制"
+target = "MainLogic.dll"
+
+[[module.patches]]
+id    = "nop_jge_max"
+where = { type = "anchor", pattern = "3b91b00000000f8da6000000", delta = 6 }
+write = { type = "raw", bytes = "909090909090", expect = "0f8da6000000" }

@@ -1,0 +1,49 @@
+# =============================================================
+#  示例模块配置（模板）
+#  用法: python cli.py apply modules/example_demo.toml
+#
+#  target / out 支持相对路径，相对本 toml 所在目录解析。
+#  每条 patch = where(定位) + write(写入) 的组合。
+# =============================================================
+
+[module]
+id     = "example-demo"
+version = "1.0.0"
+name   = "example_demo"
+target = "target.exe"          # 被 patch 的目标（PE 或裸二进制）
+out    = "target_patched.exe"  # 空字符串 = 就地写 target
+
+# -------------------------------------------------------------
+# 定位方案（where.type）: anchor / va / rva / file_offset
+# 写入方案（write.type）: raw / nop
+# -------------------------------------------------------------
+
+# 锚点定位 + 直接写字节：找到唯一字节序列，改写其起点处
+[[module.patches]]
+id    = "fix_call"
+where = { type = "anchor", pattern = "48 8B 05 11 22 33 00", which = 1, delta = 0 }
+write = { type = "raw", bytes = "48 8B 0D 11 22 33 00" }
+
+# 锚点定位 + 相对偏移：锚点起点往后 2 字节处写
+[[module.patches]]
+id    = "adjust"
+where = { type = "anchor", pattern = "48 8B 0D 11 22 33 00", delta = 2 }
+write = { type = "raw", bytes = "FF" }
+
+# VA 定位（需 PE）+ NOP 覆盖 5 字节
+[[module.patches]]
+id    = "kill_check"
+where = { type = "va", value = "0x140001234" }
+write = { type = "nop", length = 5 }
+
+# RVA 定位（需 PE）
+[[module.patches]]
+id    = "rva_nop"
+where = { type = "rva", value = "0x1234" }
+write = { type = "nop", length = 2 }
+
+# 文件偏移定位（PE / 裸二进制均可）
+[[module.patches]]
+id    = "fo_raw"
+where = { type = "file_offset", value = "0x1A3F0" }
+write = { type = "raw", bytes = "90 90 90" }

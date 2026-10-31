@@ -1,0 +1,19 @@
+# Python
+__pycache__/
+*.py[cod]
+*.egg-info/
+.venv/
+venv/
+
+# Patch 产物与备份
+*.bak
+target_patched.exe
+*patched*.exe
+*patched*.bin
+
+# 测试临时文件
+wptest_*/
+
+# IDE
+.idea/
+.vscode/

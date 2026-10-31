@@ -1,0 +1,6 @@
+# WinPatchKit 无第三方依赖，仅使用 Python 标准库。
+# 要求 Python 3.11+（依赖内置 tomllib 读取 TOML 配置）。
+#
+# 如需打包分发，可用:
+#   pyinstaller --onefile cli.py
+# 或 nuitka 编译成单文件 exe，体积可控。

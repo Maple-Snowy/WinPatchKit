@@ -1,0 +1,19 @@
+# =============================================================
+#  10 不锁键鼠（MultiClient）  [学生端]
+#  源: OsEasyPatchTool.py EXTRA_TARGETS key=mc_keyblock
+#  目标: MultiClient.exe  (MD5 b8bb9b809e8f45918f6759d4cb51f5b0, 1189376 B)
+#  原理: patch 键鼠锁指令入口 0x1A210，屏幕广播启动时不再锁鼠标。
+#        独立于「禁用/窗口化」，两者均可搭配。
+#  定位: 锚点命中键鼠锁指令入口（入口 55 8b ec -> xor eax,eax; ret）
+# =============================================================
+
+[module]
+id = "disable-keyboard-mouse-lock"
+version = "1.0.0"
+name = "屏幕广播不锁键鼠（MultiClient）"
+target = "MultiClient.exe"
+
+[[module.patches]]
+id    = "nop_keyblock"
+where = { type = "anchor", pattern = "558bec6aff68c6", delta = 0 }
+write = { type = "raw", bytes = "31c0c3", expect = "558bec" }

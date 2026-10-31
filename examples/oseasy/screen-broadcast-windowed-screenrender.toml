@@ -1,0 +1,20 @@
+# =============================================================
+#  07 屏幕广播窗口化（ScreenRender）  [学生端]
+#  源: OsEasyPatchTool.py EXTRA_TARGETS key=sr_windowed
+#  目标: ScreenRender.exe  (MD5 76cfa20119b247685827d9341132570a, 450048 B)
+#  原理: patch 0x1BDA6（mov eax,[ebp+0x58] → xor eax,eax; nop），
+#        广播以可拖拽/可缩放窗口启动，不再默认全屏。
+#        与「禁用屏幕广播」互斥（二选一）。
+#  定位: 锚点命中 fullscreen 赋值
+# =============================================================
+
+[module]
+id = "screen-broadcast-windowed-screenrender"
+version = "1.0.0"
+name = "屏幕广播窗口化（ScreenRender）"
+target = "ScreenRender.exe"
+
+[[module.patches]]
+id    = "fullscreen_zero"
+where = { type = "anchor", pattern = "8b4558898244080000", delta = 0 }
+write = { type = "raw", bytes = "31c090", expect = "8b4558" }

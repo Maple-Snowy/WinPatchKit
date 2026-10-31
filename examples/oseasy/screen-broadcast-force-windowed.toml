@@ -1,0 +1,22 @@
+# =============================================================
+#  08 屏幕广播统一窗口化（MultiClient 单点）  [学生端·推荐]
+#  源: OsEasyPatchTool.py EXTRA_TARGETS key=mc_broadcast_as_window
+#  目标: MultiClient.exe  (MD5 b8bb9b809e8f45918f6759d4cb51f5b0, 1189376 B)
+#  原理: patch 广播命令处理函数 FUN_0042b8c0 的 cmd=0x2c 分支，
+#        在源头把 fullscreen 值强制为 0：教师端无论发全屏/窗口/
+#        矩形广播，学生端统一走窗口分支（真实桌面+可缩放+不锁键鼠）。
+#        从源头同时解决桌面切换/键鼠锁/渲染三件事，推荐替代
+#        06+07 多点组合。
+#  定位: 锚点命中 fullscreen 存储指令
+# =============================================================
+
+[module]
+id = "screen-broadcast-force-windowed"
+version = "1.0.0"
+name = "屏幕广播统一窗口化（MultiClient）"
+target = "MultiClient.exe"
+
+[[module.patches]]
+id    = "force_fullscreen_zero"
+where = { type = "anchor", pattern = "8b95e4fdffff8995b0fbffff", delta = 0 }
+write = { type = "raw", bytes = "31d28995b0fbffff90909090", expect = "8b95e4fdffff8995b0fbffff" }
