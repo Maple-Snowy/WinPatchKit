@@ -1,6 +1,9 @@
-# WinPatchKit 无第三方依赖，仅使用 Python 标准库。
-# 要求 Python 3.11+（依赖内置 tomllib 读取 TOML 配置）。
+# WinPatchKit 依赖
 #
-# 如需打包分发，可用:
-#   pyinstaller --onefile cli.py
-# 或 nuitka 编译成单文件 exe，体积可控。
+# core / app 层：零第三方依赖，仅用 Python 标准库（要求 3.11+，依赖内置 tomllib）。
+#
+# GUI 层（可选）：仅当使用 `python main.py`（无参数启动 GUI）或 `flet build` 打包桌面版时需要。
+#   flet-desktop  = flet[desktop]，带原生桌面客户端；`flet build` 可产出原生 Windows exe。
+#   精确锁定 1.0.5：GUI 代码按 1.0 官方 API 编写，0.x 不兼容。
+#   安装:  pip install flet-desktop==1.0.5
+flet-desktop==1.0.5

@@ -1,0 +1,114 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+  workflow_dispatch:
+
+# 同一分支并发时取消旧的，省资源
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  # 快速失败关卡：跑单测 + GUI import 校验
+  # 截图 job 依赖它，避免 GUI 有低级错误时白等渲染
+  tests:
+    name: 单测 + GUI 导入校验
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+
+      - name: 安装依赖
+        run: |
+          python -m pip install --upgrade pip
+          pip install -r requirements.txt
+        shell: pwsh
+
+      - name: 运行单元测试（脚本式，退出码非 0 即失败）
+        run: |
+          python tests/test_winpatchkit.py
+        shell: pwsh
+
+      - name: GUI 模块导入校验（不渲染，仅 import + 控件树构造）
+        run: |
+          python -c "import gui.entry, gui.services, gui.pages.home, gui.pages.settings, gui.pages.import_page, gui.widgets.module_card, gui.widgets.report_view, gui.widgets.status_badge; print('GUI import OK')"
+        shell: pwsh
+
+  # 截图 job：真实渲染 GUI 并截图回传
+  gui-screenshot:
+    name: GUI 渲染截图
+    needs: tests
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+
+      - name: 安装依赖
+        run: |
+          python -m pip install --upgrade pip
+          pip install -r requirements.txt
+        shell: pwsh
+
+      - name: 导入示例配置（让 GUI 主页有内容可显示）
+        run: |
+          python main.py import examples/example_demo.toml
+        shell: pwsh
+
+      - name: 启动 GUI 并截图
+        shell: pwsh
+        run: |
+          # 60 秒后进程自动退出，确保 CI 不会挂住（窗口先渲染，截图在它关闭前完成）
+          $env:WINPATCHKIT_GUI_AUTO_CLOSE_AFTER = "60"
+
+          # 后台启动 GUI，记录进程，便于最后清理
+          $proc = Start-Process -FilePath "python" -ArgumentList "main.py" `
+                  -WorkingDirectory $PWD `
+                  -PassThru -RedirectStandardOutput "gui_stdout.log" -RedirectStandardError "gui_stderr.log"
+          Write-Host "GUI PID = $($proc.Id)"
+
+          # 等窗口渲染（flet 首次启动会下载 client 并开窗口，给足时间）
+          Write-Host "等待 30 秒让窗口渲染..."
+          Start-Sleep -Seconds 30
+
+          # 若进程已提前退出（渲染失败），打印日志方便排错
+          if ($proc.HasExited) {
+            Write-Host "!!! 进程已退出 (Code=$($proc.ExitCode))，dump 日志:"
+            Write-Host "----- gui_stdout.log -----"; Get-Content gui_stdout.log -ErrorAction SilentlyContinue
+            Write-Host "----- gui_stderr.log -----"; Get-Content gui_stderr.log -ErrorAction SilentlyContinue
+          }
+
+          # 用 .NET 截整个虚拟屏
+          Add-Type -AssemblyName System.Windows.Forms
+          Add-Type -AssemblyName System.Drawing
+          $screen = [System.Windows.Forms.SystemInformation]::VirtualScreen
+          $bmp = New-Object System.Drawing.Bitmap($screen.Width, $screen.Height)
+          $g = [System.Drawing.Graphics]::FromImage($bmp)
+          $g.CopyFromScreen($screen.Location, [System.Drawing.Point]::Empty, $screen.Size)
+          $bmp.Save("gui_screenshot.png")
+          $g.Dispose(); $bmp.Dispose()
+          Write-Host "已保存 gui_screenshot.png (${screen.Width}x${screen.Height})"
+
+          # 无论成败都清理 GUI 进程（若还没自动退出）
+          if (-not $proc.HasExited) {
+            try { Stop-Process -Id $proc.Id -Force } catch { }
+          }
+
+      - name: 上传截图（始终上传，便于失败时排查）
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: gui-screenshot
+          path: |
+            gui_screenshot.png
+            gui_stdout.log
+            gui_stderr.log
+          if-no-files-found: warn

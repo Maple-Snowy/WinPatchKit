@@ -3,19 +3,25 @@
 职责（应用层，依赖 core）：
   1. 确保数据目录（%APPDATA%/WinPatchKit 等）存在
   2. 启动时执行"便捷导入"：把工具同级目录里的 .toml 自动搬进数据目录/configs/
-  3. 提供子命令：list / import / apply / verify / info / path
+  3. 无参数 → 启动 Flet GUI；带参数 → CLI 子命令
 
 用法:
-  python main.py list                     列出已加载的模块
-  python main.py import  a.toml b.toml    手动导入一个或多个配置
-  python main.py apply   <module>         应用某模块（备份由设置决定，默认启用）
-  python main.py verify  <module>         只校验能否定位，不落盘
-  python main.py info    <target>         打印目标 PE 信息
-  python main.py path                     打印数据目录路径
+  python main.py                           启动 GUI（默认行为）
+  python main.py gui                       同上（显式写法）
+  python main.py list                      列出已加载的模块
+  python main.py import  a.toml b.toml     手动导入一个或多个配置
+  python main.py apply   <module>          应用某模块（备份由设置决定，默认启用）
+  python main.py verify  <module>          只校验能否定位，不落盘
+  python main.py info    <target>          打印目标 PE 信息
+  python main.py path                      打印数据目录路径
 
 <module> 可填模块 name 或文件名（在 configs/ 中匹配）。
 目标文件基准目录（相对 target）由 settings 的 target_base_dir 决定，
 可用 --base 临时覆盖。
+
+GUI 自动化（CI 截图用）：
+  设置环境变量 WINPATCHKIT_GUI_AUTO_CLOSE_AFTER=<秒数> 后，
+  窗口打开该时长会自动关闭，便于 CI 里"启动→截图→进程退出"。
 """
 from __future__ import annotations
 
@@ -150,9 +156,21 @@ def cmd_path(args) -> int:
     return 0
 
 
+def cmd_gui(args) -> int:
+    """启动 Flet GUI（需要安装 flet-desktop / flet）。"""
+    try:
+        from gui.entry import run as gui_run
+    except ImportError as e:
+        print(f"错误: 缺少 GUI 依赖（{e}）\n"
+              f"请先安装: pip install flet-desktop", file=sys.stderr)
+        return 2
+    gui_run()
+    return 0
+
+
 def main(argv=None) -> int:
     p = argparse.ArgumentParser(prog="winpatchkit", description="Windows 二进制 patch 工具")
-    sub = p.add_subparsers(dest="cmd", required=True)
+    sub = p.add_subparsers(dest="cmd")
 
     sub.add_parser("list", help="列出已加载的模块").set_defaults(func=cmd_list)
 
@@ -173,9 +191,15 @@ def main(argv=None) -> int:
 
     sub.add_parser("path", help="打印数据目录路径").set_defaults(func=cmd_path)
 
+    pg = sub.add_parser("gui", help="启动 Flet GUI 界面（需要安装 flet-desktop）")
+    pg.set_defaults(func=cmd_gui)
+
     args = p.parse_args(argv)
     try:
         startup()
+        if args.cmd is None:
+            # 无参数：直接启动 GUI
+            return cmd_gui(args)
         return args.func(args)
     except (cfig.ConfigError, applier.PatchError, FileNotFoundError) as e:
         print(f"错误: {e}", file=sys.stderr)
