@@ -157,7 +157,7 @@ class HomePage:
         card = ft.Card(
             content=ft.Column(
                 [ft.ListTile(
-                     leading=ft.Icon(ft.Icons.MONITORING, size=26,
+                     leading=ft.Icon(ft.Icons.DESKTOP_WINDOWS, size=26,
                                      color=ft.Colors.BLUE_600),
                      title=ft.Text("系统信息", size=18,
                                    weight=ft.FontWeight.BOLD)),
