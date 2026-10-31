@@ -15,9 +15,10 @@ from ..widgets.status_badge import status_badge
 
 
 class HomePage:
-    def __init__(self, page: ft.Page, on_changed):
+    def __init__(self, page: ft.Page, on_changed, file_picker: ft.FilePicker):
         self.page = page
         self.on_changed = on_changed        # 设置变更 / 数据刷新后通知 entry
+        self.file_picker = file_picker      # 目录选择（复用 entry 的 FilePicker 实例）
         self.infos = []
         self.widgets = {}                   # index -> (checkbox, badge_box, detail_text)
         self.content = self._build()
@@ -25,22 +26,22 @@ class HomePage:
     # ---------------------------------------------------------------- UI
     def _build(self) -> ft.Control:
         page = self.page
-        # 1) 基准目录条
+        # 1) 基准目录条：输入框(expand 撑满) + [浏览] + [保存]
+        # label 用短文案，说明放 hint_text；避免长 label 换行且右侧留白。
         self.base_field = ft.TextField(
-            label="目标文件基准目录（目标文件所在目录）",
-            hint_text="例如 D:\\OsEasy")
+            label="目标文件基准目录",
+            hint_text="模块 target 相对路径的解析基准（留空=工具所在目录）")
+        browse_btn = ft.IconButton(ft.Icons.FOLDER_OPEN, tooltip="选择目录",
+                                   on_click=self._pick_base)
         save_btn = ft.IconButton(ft.Icons.SAVE, tooltip="保存基准目录",
                                  on_click=self._save_base)
         base_row = ft.Container(
             content=ft.Row(
-                [ft.Column(
-                     [ft.Text("目标文件基准目录", size=11,
-                              color=ft.Colors.GREY_600),
-                      self.base_field],
-                     spacing=4, expand=True),
-                 ft.Container(width=8),
+                [ft.Container(self.base_field, expand=True),
+                 ft.Container(width=6),
+                 browse_btn,
                  save_btn],
-                vertical_alignment=ft.CrossAxisAlignment.END),
+                vertical_alignment=ft.CrossAxisAlignment.CENTER),
             padding=ft.Padding.symmetric(horizontal=14, vertical=10),
             border=ft.Border.all(1, ft.Colors.OUTLINE), border_radius=10)
 
@@ -154,6 +155,20 @@ class HomePage:
         self.page.update()
 
     # ---------------------------------------------------------------- 基准目录
+    async def _pick_base(self, e):
+        """点[浏览]：弹 Windows 原生目录选择框，选中后回填输入框并重新探测。"""
+        try:
+            path = await self.file_picker.get_directory_path(
+                dialog_title="选择目标文件基准目录",
+                initial_directory=self.base_field.value or None)
+        except Exception:
+            return
+        if not path:
+            return
+        self.base_field.value = path
+        self.page.update()
+        self._save_base(e)
+
     def _save_base(self, e):
         services.save_settings({"target_base_dir": self.base_field.value or ""})
         self.page.show_dialog(ft.SnackBar(ft.Text("基准目录已保存，正在刷新状态…")))

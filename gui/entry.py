@@ -36,7 +36,7 @@ def main(page: ft.Page):
     # 这里保存引用并显式传给导入页，复用同一实例。
     file_picker = ft.FilePicker()
 
-    home = HomePage(page, on_changed)
+    home = HomePage(page, on_changed, file_picker)
     import_page = ImportPage(page, on_changed, file_picker)
     settings_page = SettingsPage(page, on_changed)
     state["home"] = home
