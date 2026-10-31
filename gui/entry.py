@@ -8,6 +8,7 @@ import flet as ft
 
 from . import theme
 from .pages.home import HomePage
+from .pages.module import ModulePage
 from .pages.settings import SettingsPage
 from .pages.import_page import ImportPage
 
@@ -22,33 +23,34 @@ def main(page: ft.Page):
         page.window.min_width = 720
         page.window.min_height = 520
     except Exception:
-        pass  # 非桌面端（如 web/测试）无窗口句柄时忽略
+        pass
 
-    state = {"home": None}
-
-    def on_changed():
-        # 设置变更 / 导入完成后，刷新主页（重读模块 + 重探状态）
-        home = state.get("home")
-        if home is not None:
-            home.reload()
-
-    # 文件选择器（导入页使用）。1.0 里 service 构造即注册，无需加 page.overlay；
-    # 这里保存引用并显式传给导入页，复用同一实例。
+    # 文件选择器（模块页 / 导入页共用）
     file_picker = ft.FilePicker()
 
-    home = HomePage(page, on_changed, file_picker)
+    _refs = {}
+    def on_changed():
+        mp = _refs.get("module")
+        if mp:
+            mp.reload()
+
+    home = HomePage(page)
+    module_page = ModulePage(page, on_changed, file_picker)
     import_page = ImportPage(page, on_changed, file_picker)
     settings_page = SettingsPage(page, on_changed)
-    state["home"] = home
+    _refs["module"] = module_page
 
-    pages = [home, import_page, settings_page]
+    pages = [home, module_page, import_page, settings_page]
     content = ft.Container(content=home.content, expand=True,
                            padding=ft.Padding.all(16))
 
     nav = ft.NavigationBar(
         destinations=[
             ft.NavigationBarDestination(
-                icon=ft.Icons.HOME_OUTLINED, selected_icon=ft.Icons.HOME,
+                icon=ft.Icons.INFO_OUTLINED, selected_icon=ft.Icons.INFO,
+                label="主页"),
+            ft.NavigationBarDestination(
+                icon=ft.Icons.LIST_OUTLINED, selected_icon=ft.Icons.LIST,
                 label="模块"),
             ft.NavigationBarDestination(
                 icon=ft.Icons.DRIVE_FILE_MOVE_OUTLINED,
@@ -61,13 +63,11 @@ def main(page: ft.Page):
     def on_nav(e):
         idx = e.control.selected_index
         content.content = pages[idx].content
-        if idx == 0:
-            home.reload()
+        if idx == 1:
+            module_page.reload()
         page.update()
 
     nav.on_change = on_nav
-    # 官方用法：NavigationBar 是 Page 的一等属性，Flet 自动钉底并管理内容区高度，
-    # 不要再手动塞进 Column（那样高度算错，nav 会浮到中间）。
     page.navigation_bar = nav
 
     # 顶部标题栏：官方 AppBar（Page 一等属性），Flet 自动管理顶栏+内容区+底栏，
@@ -89,9 +89,6 @@ def main(page: ft.Page):
                           on_click=lambda e: _toggle_theme(page))])
 
     page.add(ft.SafeArea(content))
-
-    # 初始加载
-    home.reload()
 
 
 def _toggle_theme(page: ft.Page):
