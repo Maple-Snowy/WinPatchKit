@@ -213,11 +213,15 @@ class HomePage:
                        stat_cell(self.stat_patched, "已打补丁"),
                        stat_cell(self.stat_missing, "目标缺失")],
                       vertical_alignment=ft.CrossAxisAlignment.CENTER),
-                  ft.Divider(height=10),
-                  ft.Row([manage_btn,
-                          ft.Container(width=12),
-                          import_btn])],
-                spacing=0, horizontal_alignment=ft.CrossAxisAlignment.CENTER),
+                   ft.Divider(height=10),
+                   # 底部操作区：套 Container 加内边距，避免按钮贴到 Card 的
+                   # 12px 圆角边框上（Card 本身无内建 padding，需手动补）。
+                   ft.Container(
+                       content=ft.Row([manage_btn,
+                                       ft.Container(width=12),
+                                       import_btn]),
+                       padding=ft.Padding.symmetric(horizontal=14, vertical=12))],
+                 spacing=0, horizontal_alignment=ft.CrossAxisAlignment.CENTER),
             expand=True)
 
     def _build(self) -> ft.Control:
