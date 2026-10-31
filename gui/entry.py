@@ -108,13 +108,22 @@ def _toggle_theme(page: ft.Page):
 
 
 # ── DWM 标题栏适配 ──────────────────────────────────────────
-# Win10 1903+ / Win11: DWMWA_USE_IMMERSIVE_DARK_MODE (20)
-# Win11 专属:           DWMWA_CAPTION_COLOR (35)  精确背景色（Win10 静默忽略）
-# 背景色取自深色 Material 3 surface（种子 #2E8B57 推导）: #0F1511
-# DWM 颜色格式 = ABGR (DWORD): 0xFF + B + G + R
+# 让 Win32 标题栏跟随窗口明暗，并在 Win11 上精确贴合 Material 3 背景色。
+#   DWMWA_USE_IMMERSIVE_DARK_MODE = 20  Win10 1903+ / Win11：深色标题栏开关
+#   DWMWA_CAPTION_COLOR           = 35  Win11 22H2+：精确背景色（Win10 静默忽略）
+# 背景色取自 Material 3 surface（种子 #2E8B57 推导）：
+#   深色 #0F1511 / 浅色 #F8F9FF
 _DWMWA_IMMERSIVE_DARK = 20
 _DWMWA_CAPTION_COLOR  = 35
-_CAPTION_ABGR         = 0xFF11150F  # #0F1511 → A=FF B=11 G=15 R=0F
+_CAPTION_DARK  = "#0F1511"
+_CAPTION_LIGHT = "#F8F9FF"
+
+
+def _colorref(rgb_hex: str) -> int:
+    """'#RRGGBB' -> Windows COLORREF（0x00BBGGRR，顶字节为 0）。"""
+    h = rgb_hex.lstrip("#")
+    r, g, b = int(h[0:2], 16), int(h[2:4], 16), int(h[4:6], 16)
+    return (b << 16) | (g << 8) | r
 
 
 def _apply_titlebar(title: str, dark: bool):
@@ -145,7 +154,7 @@ def _apply_titlebar(title: str, dark: bool):
             h, _DWMWA_IMMERSIVE_DARK,
             ctypes.byref(v_dark), ctypes.sizeof(v_dark))
         # Win11: 精确标题栏背景色（Win10 上此属性不存在，调用静默失败，无副作用）
-        v_color = ctypes.c_uint(_CAPTION_ABGR if dark else 0xFFF8F9FF)
+        v_color = ctypes.c_uint(_colorref(_CAPTION_DARK if dark else _CAPTION_LIGHT))
         dwmapi.DwmSetWindowAttribute(
             h, _DWMWA_CAPTION_COLOR,
             ctypes.byref(v_color), ctypes.sizeof(v_color))
