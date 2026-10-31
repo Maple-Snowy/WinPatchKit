@@ -189,12 +189,15 @@ class HomePage:
                     spacing=2),
                 expand=True, padding=ft.Padding.symmetric(vertical=4))
 
-        manage_btn = ft.TextButton(
-            ft.Row([ft.Icon(ft.Icons.LIST_ALT), ft.Text("  管理模块")]),
-            on_click=lambda e: self._goto(1))
-        import_btn = ft.TextButton(
-            ft.Row([ft.Icon(ft.Icons.DRIVE_FILE_MOVE), ft.Text("  导入新模块")]),
-            on_click=lambda e: self._goto(2))
+        # 两个填充圆角按钮（ft.Button）并排，各 expand=True 平分卡片宽度
+        manage_btn = ft.Button(
+            ft.Row([ft.Icon(ft.Icons.LIST_ALT), ft.Text("  管理模块")],
+                   horizontal_alignment=ft.CrossAxisAlignment.CENTER),
+            expand=True, on_click=lambda e: self._goto(1))
+        import_btn = ft.Button(
+            ft.Row([ft.Icon(ft.Icons.DRIVE_FILE_MOVE), ft.Text("  导入新模块")],
+                   horizontal_alignment=ft.CrossAxisAlignment.CENTER),
+            expand=True, on_click=lambda e: self._goto(2))
 
         return ft.Card(
             content=ft.Column(
@@ -211,9 +214,9 @@ class HomePage:
                        stat_cell(self.stat_missing, "目标缺失")],
                       vertical_alignment=ft.CrossAxisAlignment.CENTER),
                   ft.Divider(height=10),
-                  ft.Column([manage_btn, import_btn],
-                            horizontal_alignment=ft.CrossAxisAlignment.CENTER,
-                            spacing=4)],
+                  ft.Row([manage_btn,
+                          ft.Container(width=12),
+                          import_btn])],
                 spacing=0, horizontal_alignment=ft.CrossAxisAlignment.CENTER),
             expand=True)
 
