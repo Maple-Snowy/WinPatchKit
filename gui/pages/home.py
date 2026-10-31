@@ -1,11 +1,13 @@
-"""起始页（主页）：纯展示设备与系统信息，不提供交互操作。
+"""起始页（主页）：左「系统信息」/ 右「模块概览」双卡片仪表盘。
 
-展示内容：
-  - CPU 型号 / 核心数
-  - 内存总量 / 可用
-  - Windows 版本（如 Windows 10 专业版）
-  - Windows 小版本号（build xxxx）
-  - 是否以管理员身份运行
+两张卡片以窗口中央为界一左一右平分宽度（各 expand=True，随窗口拉伸自适应）。
+左卡片：设备与系统信息
+  - CPU 型号 / 核心数 / 内存
+  - Windows 版本 + build 号
+  - 是否管理员 / Python 版本
+右卡片：模块概览
+  - 已导入 / 可应用 / 已打补丁 / 目标缺失 统计（后台探测后刷新）
+  - 「管理模块」「导入新模块」两个快捷入口（跳对应 tab）
 """
 from __future__ import annotations
 
@@ -15,6 +17,8 @@ import platform
 import sys
 
 import flet as ft
+
+from .. import services
 
 
 # ---------------------------------------------------------------- 信息采集
@@ -135,15 +139,25 @@ def collect_system_info() -> list:
 # ---------------------------------------------------------------- 页面
 
 class HomePage:
-    """起始页：纯展示，无交互。"""
+    """起始页：左系统信息 / 右模块概览双卡片。模块概览支持刷新。"""
 
-    def __init__(self, page: ft.Page, on_changed=None):
+    def __init__(self, page: ft.Page, on_changed=None, on_goto=None):
         self.page = page
+        self.on_changed = on_changed   # 预留
+        self.on_goto = on_goto         # (index) -> 跳到对应 tab（entry 注入）
+        self.infos = []
+        self.stat_total = ft.Text("0", size=20, weight=ft.FontWeight.BOLD)
+        self.stat_ready = ft.Text("0", size=20, weight=ft.FontWeight.BOLD,
+                                  color=ft.Colors.BLUE_600)
+        self.stat_patched = ft.Text("0", size=20, weight=ft.FontWeight.BOLD,
+                                    color=ft.Colors.GREEN_600)
+        self.stat_missing = ft.Text("0", size=20, weight=ft.FontWeight.BOLD,
+                                    color=ft.Colors.AMBER_700)
         self.content = self._build()
 
-    def _build(self) -> ft.Control:
+    # ---- 左卡片：系统信息（静态）----
+    def _build_system_card(self) -> ft.Control:
         items = collect_system_info()
-
         tiles = [
             ft.ListTile(
                 title=ft.Text(value, size=14),
@@ -153,22 +167,103 @@ class HomePage:
             )
             for label, value in items
         ]
-
-        card = ft.Card(
+        return ft.Card(
             content=ft.Column(
                 [ft.ListTile(
-                     leading=ft.Icon(ft.Icons.DESKTOP_WINDOWS, size=26,
+                     leading=ft.Icon(ft.Icons.MONITOR, size=26,
                                      color=ft.Colors.PRIMARY),
                      title=ft.Text("系统信息", size=18,
                                    weight=ft.FontWeight.BOLD)),
-                 ft.Divider(height=8),
-                 ft.Column(tiles, spacing=0)],
+                  ft.Divider(height=8),
+                  ft.Column(tiles, spacing=0, scroll=ft.ScrollMode.AUTO)],
                 spacing=0),
-            width=480)
+            expand=True)
 
-        return ft.Column(
-            [ft.Container(card, alignment=ft.Alignment.CENTER,
-                          margin=ft.Margin.symmetric(horizontal=16, vertical=20)),
-            ],
-            horizontal_alignment=ft.CrossAxisAlignment.CENTER,
-            scroll=ft.ScrollMode.AUTO, expand=True)
+    # ---- 右卡片：模块概览（可刷新）----
+    def _build_module_card(self) -> ft.Control:
+        def stat_cell(text: ft.Text, label: str) -> ft.Control:
+            return ft.Container(
+                content=ft.Column(
+                    [text, ft.Text(label, size=12, color=ft.Colors.GREY_600)],
+                    horizontal_alignment=ft.CrossAxisAlignment.CENTER,
+                    spacing=2),
+                expand=True, padding=ft.Padding.symmetric(vertical=4))
+
+        manage_btn = ft.TextButton(
+            ft.Row([ft.Icon(ft.Icons.LIST_ALT), ft.Text("  管理模块")]),
+            on_click=lambda e: self._goto(1))
+        import_btn = ft.TextButton(
+            ft.Row([ft.Icon(ft.Icons.DRIVE_FILE_MOVE), ft.Text("  导入新模块")]),
+            on_click=lambda e: self._goto(2))
+
+        return ft.Card(
+            content=ft.Column(
+                [ft.ListTile(
+                     leading=ft.Icon(ft.Icons.INVENTORY_2, size=26,
+                                     color=ft.Colors.PRIMARY),
+                     title=ft.Text("模块概览", size=18,
+                                   weight=ft.FontWeight.BOLD)),
+                  ft.Divider(height=8),
+                  ft.Row(
+                      [stat_cell(self.stat_total, "已导入"),
+                       stat_cell(self.stat_ready, "可应用"),
+                       stat_cell(self.stat_patched, "已打补丁"),
+                       stat_cell(self.stat_missing, "目标缺失")],
+                      vertical_alignment=ft.CrossAxisAlignment.CENTER),
+                  ft.Divider(height=10),
+                  ft.Column([manage_btn, import_btn],
+                            horizontal_alignment=ft.CrossAxisAlignment.CENTER,
+                            spacing=4)],
+                spacing=0, horizontal_alignment=ft.CrossAxisAlignment.CENTER),
+            expand=True)
+
+    def _build(self) -> ft.Control:
+        # 两张卡片各 expand=True，Row 平分宽度 → 以窗口中央为界一左一右，
+        # 随窗口拉伸自适应；中间只留 20px 缝隙，不画分割线。
+        row = ft.Row(
+            [self._build_system_card(),
+             ft.Container(width=20),   # 中缝
+             self._build_module_card()],
+            vertical_alignment=ft.CrossAxisAlignment.START,
+            expand=True)
+        # 外层可滚动 Column：双卡内容过高（小窗口）时整行可滚。
+        return ft.Column([row], spacing=0,
+                         scroll=ft.ScrollMode.AUTO, expand=True)
+
+    # ---- 数据刷新（切回主页时由 entry 调用）----
+    def reload(self):
+        self.infos = services.list_modules()
+        self.stat_total.value = str(len(self.infos))
+        self.page.update()
+        self._probe()
+
+    def _probe(self):
+        if not self.infos:
+            return
+
+        def run():
+            base = services.get_settings()["target_base_dir"] or ""
+            results = services.probe_all(base, self.infos)
+            ready = patched = missing = 0
+            for info in self.infos:
+                st = results.get(info.id)
+                if not st:
+                    missing += 1
+                    continue
+                if st.status == "ready":
+                    ready += 1
+                elif st.status == "patched":
+                    patched += 1
+                elif st.status in ("missing", "failed", "partial"):
+                    missing += 1
+            self.stat_ready.value = str(ready)
+            self.stat_patched.value = str(patched)
+            self.stat_missing.value = str(missing)
+            self.page.update()
+
+        self.page.run_thread(run)
+
+    # ---- tab 跳转 ----
+    def _goto(self, index: int):
+        if self.on_goto:
+            self.on_goto(index)

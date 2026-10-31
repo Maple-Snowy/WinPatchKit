@@ -35,7 +35,10 @@ def main(page: ft.Page):
         if mp:
             mp.reload()
 
-    home = HomePage(page)
+    def goto_tab(idx):
+        _refs["switch"](idx)
+
+    home = HomePage(page, on_changed, on_goto=goto_tab)
     module_page = ModulePage(page, on_changed, file_picker)
     import_page = ImportPage(page, on_changed, file_picker)
     settings_page = SettingsPage(page, on_changed)
@@ -61,15 +64,21 @@ def main(page: ft.Page):
                 selected_icon=ft.Icons.SETTINGS, label="设置"),
         ])
 
-    def on_nav(e):
-        idx = e.control.selected_index
+    def switch_to(idx):
         content.content = pages[idx].content
-        if idx == 1:
+        if idx == 0:
+            home.reload()
+        elif idx == 1:
             module_page.reload()
+        nav.selected_index = idx
         page.update()
+
+    def on_nav(e):
+        switch_to(e.control.selected_index)
 
     nav.on_change = on_nav
     page.navigation_bar = nav
+    _refs["switch"] = switch_to
 
     # 顶部标题栏：官方 AppBar（Page 一等属性），Flet 自动管理顶栏+内容区+底栏，
     # 不再手搓 Container+Row 伪造顶栏。
@@ -97,6 +106,13 @@ def main(page: ft.Page):
         time.sleep(1)
         _apply_titlebar(page.title, page.theme_mode == ft.ThemeMode.DARK)
     page.run_thread(_init_titlebar)
+
+    # 首页为默认页（不走 switch_to），启动后主动加载一次模块概览
+    def _first_load():
+        import time
+        time.sleep(0.5)
+        home.reload()
+    page.run_thread(_first_load)
 
 
 def _toggle_theme(page: ft.Page):
