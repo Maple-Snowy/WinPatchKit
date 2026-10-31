@@ -66,6 +66,9 @@ def main(page: ft.Page):
         page.update()
 
     nav.on_change = on_nav
+    # 官方用法：NavigationBar 是 Page 的一等属性，Flet 自动钉底并管理内容区高度，
+    # 不要再手动塞进 Column（那样高度算错，nav 会浮到中间）。
+    page.navigation_bar = nav
 
     # 标题栏
     header = ft.Container(
@@ -85,9 +88,7 @@ def main(page: ft.Page):
         border=ft.Border.only(bottom=ft.BorderSide(1, ft.Colors.OUTLINE)))
 
     page.add(ft.SafeArea(ft.Column(
-        [header,
-         ft.Column([content], expand=True),
-         nav],
+        [header, content],
         spacing=0, expand=True)))
 
     # 初始加载
