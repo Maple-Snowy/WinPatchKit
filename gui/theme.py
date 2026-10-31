@@ -8,6 +8,15 @@ import flet as ft
 APP_TITLE = "WinPatchKit"
 APP_SUBTITLE = "Windows 二进制 Patch 工具"
 
+# Material 3 种子色：Flet 自动从它推导整套配色（不手写配色逻辑）。
+# #2E8B57 海绿；深色 surface ≈ #0F1511（titlebar 精确标题栏同色）。
+SEED_COLOR = "#2E8B57"
+
+
+def build_page_theme() -> ft.Theme:
+    """据种子色构建页面主题（M3 自动推导配色）。"""
+    return ft.Theme(color_scheme_seed=SEED_COLOR)
+
 # 状态 -> 中文标签
 STATUS_LABEL = {
     "pending": "检测中",
