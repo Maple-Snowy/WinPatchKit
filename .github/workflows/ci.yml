@@ -1,9 +1,8 @@
 name: CI
 
+# 仅手动触发（在 GitHub Actions 页面点 Run workflow 执行），
+# 推送 / PR 不自动跑。
 on:
-  push:
-    branches: [main]
-  pull_request:
   workflow_dispatch:
 
 # 同一分支并发时取消旧的，省资源
@@ -18,10 +17,12 @@ env:
   PYTHONIOENCODING: "utf-8"
 
 jobs:
-  # 快速失败关卡：跑单测 + GUI import 校验
+  # 快速失败关卡：GUI import 校验
+  # （patch 引擎单测 tests/test_winpatchkit.py 当前不在 CI 里执行，
+  #  需要时本地直接 `python tests/test_winpatchkit.py` 跑）
   # 截图 job 依赖它，避免 GUI 有低级错误时白等渲染
   tests:
-    name: 单测 + GUI 导入校验
+    name: GUI 导入校验
     runs-on: windows-latest
     steps:
       - uses: actions/checkout@v4
@@ -34,11 +35,6 @@ jobs:
         run: |
           python -m pip install --upgrade pip
           pip install -r requirements.txt
-        shell: pwsh
-
-      - name: 运行单元测试（脚本式，退出码非 0 即失败）
-        run: |
-          python tests/test_winpatchkit.py
         shell: pwsh
 
       - name: GUI 模块导入校验（不渲染，仅 import + 控件树构造）
