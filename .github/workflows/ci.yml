@@ -82,11 +82,12 @@ jobs:
           Write-Host "等待 30 秒让窗口渲染..."
           Start-Sleep -Seconds 30
 
-          # 若进程已提前退出（渲染失败），打印日志方便排错
+          # 若进程已提前退出（渲染失败），打印日志并让 step 失败（避免假绿）
           if ($proc.HasExited) {
             Write-Host "!!! 进程已退出 (Code=$($proc.ExitCode))，dump 日志:"
             Write-Host "----- gui_stdout.log -----"; Get-Content gui_stdout.log -ErrorAction SilentlyContinue
             Write-Host "----- gui_stderr.log -----"; Get-Content gui_stderr.log -ErrorAction SilentlyContinue
+            exit 1
           }
 
           # 把 GUI 窗口最大化（仅 CI 截图用，不影响项目代码默认窗口化）

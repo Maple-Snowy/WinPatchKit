@@ -191,12 +191,10 @@ class HomePage:
 
         # 两个填充圆角按钮（ft.Button）并排，各 expand=True 平分卡片宽度
         manage_btn = ft.Button(
-            ft.Row([ft.Icon(ft.Icons.LIST_ALT), ft.Text("  管理模块")],
-                   horizontal_alignment=ft.CrossAxisAlignment.CENTER),
+            ft.Row([ft.Icon(ft.Icons.LIST_ALT), ft.Text("  管理模块")]),
             expand=True, on_click=lambda e: self._goto(1))
         import_btn = ft.Button(
-            ft.Row([ft.Icon(ft.Icons.DRIVE_FILE_MOVE), ft.Text("  导入新模块")],
-                   horizontal_alignment=ft.CrossAxisAlignment.CENTER),
+            ft.Row([ft.Icon(ft.Icons.DRIVE_FILE_MOVE), ft.Text("  导入新模块")]),
             expand=True, on_click=lambda e: self._goto(2))
 
         return ft.Card(
