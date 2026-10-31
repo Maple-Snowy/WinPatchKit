@@ -91,12 +91,64 @@ def main(page: ft.Page):
 
     page.add(ft.SafeArea(content))
 
+    # 窗口创建后异步套深色标题栏（需 HWND 已存在，故延迟一帧）
+    def _init_titlebar():
+        import time
+        time.sleep(1)
+        _apply_titlebar(page.title, page.theme_mode == ft.ThemeMode.DARK)
+    page.run_thread(_init_titlebar)
+
 
 def _toggle_theme(page: ft.Page):
     page.theme_mode = (ft.ThemeMode.LIGHT
                        if page.theme_mode == ft.ThemeMode.DARK
                        else ft.ThemeMode.DARK)
+    _apply_titlebar(page.title, page.theme_mode == ft.ThemeMode.DARK)
     page.update()
+
+
+# ── DWM 标题栏适配 ──────────────────────────────────────────
+# Win10 1903+ / Win11: DWMWA_USE_IMMERSIVE_DARK_MODE (20)
+# Win11 专属:           DWMWA_CAPTION_COLOR (35)  精确背景色（Win10 静默忽略）
+# 背景色取自深色 Material 3 surface（种子 #2E8B57 推导）: #0F1511
+# DWM 颜色格式 = ABGR (DWORD): 0xFF + B + G + R
+_DWMWA_IMMERSIVE_DARK = 20
+_DWMWA_CAPTION_COLOR  = 35
+_CAPTION_ABGR         = 0xFF11150F  # #0F1511 → A=FF B=11 G=15 R=0F
+
+
+def _apply_titlebar(title: str, dark: bool):
+    """通过 Win32 + DWM API 让标题栏匹配窗口深色/浅色模式。"""
+    import ctypes
+    from ctypes import wintypes
+
+    user32  = ctypes.windll.user32
+    dwmapi  = ctypes.windll.dwmapi
+
+    found = []
+
+    @ctypes.WINFUNCTYPE(ctypes.c_bool, wintypes.HWND, wintypes.LPARAM)
+    def _enum(h, _):
+        n = user32.GetWindowTextLengthW(h)
+        if n > 0:
+            buf = ctypes.create_unicode_buffer(n + 1)
+            user32.GetWindowTextW(h, buf, n + 1)
+            if buf.value == title:
+                found.append(h)
+        return True
+
+    user32.EnumWindows(_enum, 0)
+
+    for h in found:
+        v_dark = ctypes.c_int(1 if dark else 0)
+        dwmapi.DwmSetWindowAttribute(
+            h, _DWMWA_IMMERSIVE_DARK,
+            ctypes.byref(v_dark), ctypes.sizeof(v_dark))
+        # Win11: 精确标题栏背景色（Win10 上此属性不存在，调用静默失败，无副作用）
+        v_color = ctypes.c_uint(_CAPTION_ABGR if dark else 0xFFF8F9FF)
+        dwmapi.DwmSetWindowAttribute(
+            h, _DWMWA_CAPTION_COLOR,
+            ctypes.byref(v_color), ctypes.sizeof(v_color))
 
 
 def run():
