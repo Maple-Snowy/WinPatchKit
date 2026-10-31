@@ -70,26 +70,25 @@ def main(page: ft.Page):
     # 不要再手动塞进 Column（那样高度算错，nav 会浮到中间）。
     page.navigation_bar = nav
 
-    # 标题栏
-    header = ft.Container(
-        content=ft.Row(
+    # 顶部标题栏：官方 AppBar（Page 一等属性），Flet 自动管理顶栏+内容区+底栏，
+    # 不再手搓 Container+Row 伪造顶栏。
+    page.appbar = ft.AppBar(
+        title=ft.Row(
             [ft.Icon(ft.Icons.BUILD_CIRCLE, color=ft.Colors.BLUE_600),
              ft.Column(
                  [ft.Text(theme.APP_TITLE, size=18,
                           weight=ft.FontWeight.BOLD),
                   ft.Text(theme.APP_SUBTITLE, size=11,
                           color=ft.Colors.GREY_500)],
-                 spacing=0),
-             ft.Container(expand=True),
-             ft.IconButton(ft.Icons.DARK_MODE, tooltip="切换明暗",
-                           on_click=lambda e: _toggle_theme(page))],
-            vertical_alignment=ft.CrossAxisAlignment.CENTER),
-        padding=ft.Padding.symmetric(horizontal=16, vertical=10),
-        border=ft.Border.only(bottom=ft.BorderSide(1, ft.Colors.OUTLINE)))
+                 spacing=0,
+                 horizontal_alignment=ft.CrossAxisAlignment.START)],
+            vertical_alignment=ft.CrossAxisAlignment.CENTER,
+            spacing=10),
+        actions=[
+            ft.IconButton(ft.Icons.DARK_MODE, tooltip="切换明暗",
+                          on_click=lambda e: _toggle_theme(page))])
 
-    page.add(ft.SafeArea(ft.Column(
-        [header, content],
-        spacing=0, expand=True)))
+    page.add(ft.SafeArea(content))
 
     # 初始加载
     home.reload()
