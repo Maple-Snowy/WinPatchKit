@@ -88,6 +88,25 @@ jobs:
             Write-Host "----- gui_stderr.log -----"; Get-Content gui_stderr.log -ErrorAction SilentlyContinue
           }
 
+          # 把 GUI 窗口最大化（仅 CI 截图用，不影响项目代码默认窗口化）
+          Add-Type -Type 'using System; using System.Runtime.InteropServices; public class Win32 { [DllImport("user32.dll")] public static extern bool ShowWindow(IntPtr h, int n); [DllImport("user32.dll")] public static extern bool IsWindowVisible(IntPtr h); [DllImport("user32.dll")] public static extern bool EnumWindows(EnumWindowsProc lp, IntPtr l); [DllImport("user32.dll")] public static extern int GetWindowText(IntPtr h, System.Text.StringBuilder s, int n); [DllImport("user32.dll")] public static extern int GetWindowTextLength(IntPtr h); public delegate bool EnumWindowsProc(IntPtr h, IntPtr l); }'
+          $hndls = New-Object System.Collections.ArrayList
+          $cb = [Win32+EnumWindowsProc]{ param($h, $l)
+              if ([Win32]::IsWindowVisible($h) -and [Win32]::GetWindowTextLength($h) -gt 0) {
+                $sb = New-Object System.Text.StringBuilder([Win32]::GetWindowTextLength($h) + 1)
+                [void][Win32]::GetWindowText($h, $sb, $sb.Capacity)
+                if ($sb.ToString() -like '*WinPatchKit*') { [void]$l.Add($h) }
+              }
+              return $true }
+          [void][Win32]::EnumWindows($cb, [IntPtr]::Zero)
+          if ($hndls.Count -gt 0) {
+            [void][Win32]::ShowWindow($hndls[0], 3)   # SW_MAXIMIZE = 3
+            Start-Sleep -Seconds 3                     # 等最大化动画稳定
+            Write-Host "已最大化窗口（匹配 $($hndls.Count) 个）"
+          } else {
+            Write-Host "!! 未找到 WinPatchKit 窗口，跳过最大化"
+          }
+
           # 用 .NET 截整个虚拟屏
           Add-Type -AssemblyName System.Windows.Forms
           Add-Type -AssemblyName System.Drawing
