@@ -49,14 +49,14 @@ class ModulePage:
         # 2) 工具条
         self.sel_count = ft.Text("已选 0", size=13, color=ft.Colors.GREY_600)
         self.apply_btn = ft.FilledButton(
-            ft.Row([ft.Icon(ft.Icons.BUILD), ft.Text("  应用补丁")]),
+            ft.Row([ft.Icon(ft.Icons.BUILD), ft.Text("应用补丁")], spacing=8),
             disabled=True)
         self.apply_btn.on_click = self._apply
         refresh_btn = ft.TextButton(
-            ft.Row([ft.Icon(ft.Icons.REFRESH), ft.Text("  刷新状态")]),
+            ft.Row([ft.Icon(ft.Icons.REFRESH), ft.Text("刷新状态")], spacing=8),
             on_click=lambda e: self.probe())
         import_btn = ft.FilledButton(
-            ft.Row([ft.Icon(ft.Icons.FILE_DOWNLOAD), ft.Text("  导入配置")]),
+            ft.Row([ft.Icon(ft.Icons.FILE_DOWNLOAD), ft.Text("导入配置")], spacing=8),
             on_click=lambda e: self._show_import_dialog())
         self.tool_row = ft.Container(
             content=ft.Row(
@@ -144,11 +144,11 @@ class ModulePage:
     def _show_import_dialog(self):
         """弹官方对话框让用户选导入方式：选 .toml 文件 / 便捷导入。"""
         pick_btn = ft.TextButton(
-            ft.Row([ft.Icon(ft.Icons.FOLDER_OPEN), ft.Text("  选择 .toml 文件")]),
+            ft.Row([ft.Icon(ft.Icons.FOLDER_OPEN), ft.Text("选择 .toml 文件")], spacing=8),
             on_click=self._pick)
         auto_btn = ft.TextButton(
             ft.Row([ft.Icon(ft.Icons.CLOUD_UPLOAD_OUTLINED),
-                    ft.Text("  便捷导入（扫描工具/设置目录）")]),
+                    ft.Text("便捷导入（扫描工具/设置目录）")], spacing=8),
             on_click=self._auto)
         dlg = ft.AlertDialog(
             title=ft.Text("导入模块配置"),
