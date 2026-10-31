@@ -144,32 +144,31 @@ class HomePage:
     def _build(self) -> ft.Control:
         items = collect_system_info()
 
-        rows = []
-        for label, value in items:
-            rows.append(ft.Row(
-                [ft.Container(ft.Text(label, size=13, color=ft.Colors.GREY_600),
-                              width=110),
-                 ft.Text(value, size=14)],
-                vertical_alignment=ft.CrossAxisAlignment.CENTER,
-                spacing=8))
+        tiles = [
+            ft.ListTile(
+                title=ft.Text(value, size=14),
+                leading=ft.Icon(ft.Icons.INFO_OUTLINE, color=ft.Colors.GREY_400,
+                                size=20),
+                subtitle=ft.Text(label, size=12, color=ft.Colors.GREY_600),
+            )
+            for label, value in items
+        ]
 
-        card = ft.Container(
+        card = ft.Card(
             content=ft.Column(
-                [ft.Row(
-                     [ft.Icon(ft.Icons.INFO_OUTLINE, size=28,
-                              color=ft.Colors.BLUE_600),
-                      ft.Text("  系统信息", size=18,
-                              weight=ft.FontWeight.BOLD)],
-                     spacing=8),
-                 ft.Container(height=12),
-                 ft.Divider(height=4),
-                 ft.Column(rows, spacing=10)],
+                [ft.ListTile(
+                     leading=ft.Icon(ft.Icons.MONITORING, size=26,
+                                     color=ft.Colors.BLUE_600),
+                     title=ft.Text("系统信息", size=18,
+                                   weight=ft.FontWeight.BOLD)),
+                 ft.Divider(height=8),
+                 ft.Column(tiles, spacing=0)],
                 spacing=0),
-            padding=ft.Padding.all(20),
-            border=ft.Border.all(1, ft.Colors.OUTLINE),
-            border_radius=12)
+            width=480)
 
         return ft.Column(
-            [ft.Container(height=20),
-             ft.Container(card, alignment=ft.Alignment.CENTER)],
+            [ft.Container(card, alignment=ft.Alignment.CENTER,
+                          margin=ft.Margin.symmetric(horizontal=16, vertical=20)),
+            ],
+            horizontal_alignment=ft.CrossAxisAlignment.CENTER,
             scroll=ft.ScrollMode.AUTO, expand=True)
