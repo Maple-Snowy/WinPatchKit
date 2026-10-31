@@ -171,5 +171,5 @@ class HomePage:
 
         return ft.Column(
             [ft.Container(height=20),
-             ft.Container(card, alignment=ft.alignment.center)],
+             ft.Container(card, alignment=ft.Alignment.CENTER)],
             scroll=ft.ScrollMode.AUTO, expand=True)
