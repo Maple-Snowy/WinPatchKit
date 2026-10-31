@@ -86,7 +86,7 @@ def main(page: ft.Page):
 
     page.add(ft.SafeArea(ft.Column(
         [header,
-         ft.Column([content], expand=True, scroll=ft.ScrollMode.AUTO),
+         ft.Column([content], expand=True),
          nav],
         spacing=0, expand=True)))
 
