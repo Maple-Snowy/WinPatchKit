@@ -55,6 +55,7 @@ class SettingsPage:
 
         # ---- 左列：基本设置 ----
         self.backup_switch = ft.Switch(label="应用补丁前备份原始文件",
+                                       label_position=ft.LabelPosition.LEFT,
                                        value=bool(st.get("backup", True)))
         self.backup_ext = text_field("backup_ext", "备份后缀", ".bak")
 
@@ -87,6 +88,7 @@ class SettingsPage:
 
         self.follow_switch = ft.Switch(
             label="主题色跟随系统（读取 Windows 强调色）",
+            label_position=ft.LabelPosition.LEFT,
             value=bool(st.get("theme_follow_system", False)),
             on_change=lambda e: self._save(),
         )
