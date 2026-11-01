@@ -1,4 +1,4 @@
-"""设置页：目标基准目录 / 便捷导入目录 / 备份开关 / 备份后缀 + 个性化主题。
+"""设置页：双列布局（左=基本设置 / 右=个性化），顶部标题+底部保存按钮跨整行。
 
 所有设置持久化到数据目录/settings.json（走 app.Settings），修改即保存。
 个性化区全部使用 Flet 原生控件（Dropdown / Switch / TextField / 可点击色块），
@@ -53,11 +53,27 @@ class SettingsPage:
             self._fields[key] = f
             return f
 
+        # ---- 左列：基本设置 ----
         self.backup_switch = ft.Switch(label="应用补丁前备份原始文件",
                                        value=bool(st.get("backup", True)))
         self.backup_ext = text_field("backup_ext", "备份后缀", ".bak")
 
-        # ---- 个性化：主题模式（下拉菜单）----
+        left_col = ft.Column(
+            [
+                ft.Text("基本设置", size=16, weight=ft.FontWeight.BOLD),
+                ft.Container(height=6),
+                text_field("target_base_dir", "目标文件基准目录",
+                           "模块 target 相对路径的解析基准（如 OsEasy 安装目录）"),
+                text_field("auto_import_dir", "便捷导入目录",
+                           "启动时自动把该目录里的 .toml 搬入并加载（留空=工具所在目录）"),
+                self.backup_switch,
+                self.backup_ext,
+            ],
+            spacing=10,
+            expand=True,
+        )
+
+        # ---- 右列：个性化 ----
         self.mode_dropdown = ft.Dropdown(
             label="主题模式",
             options=[
@@ -69,7 +85,6 @@ class SettingsPage:
             on_select=lambda e: self._save(),
         )
 
-        # ---- 个性化：主题色（跟随系统开关 + 可折叠自定义区）----
         self.follow_switch = ft.Switch(
             label="主题色跟随系统（读取 Windows 强调色）",
             value=bool(st.get("theme_follow_system", False)),
@@ -109,6 +124,18 @@ class SettingsPage:
             visible=not self.follow_switch.value,
         )
 
+        right_col = ft.Column(
+            [
+                ft.Text("个性化", size=16, weight=ft.FontWeight.BOLD),
+                ft.Container(height=6),
+                self.mode_dropdown,
+                self.follow_switch,
+                self.seed_grid,
+            ],
+            spacing=10,
+            expand=True,
+        )
+
         # 文本框 / 备份开关：提交即保存
         self.backup_switch.on_change = lambda e: self._save()
         for f in self._fields.values():
@@ -116,27 +143,23 @@ class SettingsPage:
 
         save_btn = ft.FilledButton("保存设置", on_click=lambda e: self._save())
 
+        # ---- 组装：顶部标题 + 双列主体（各 expand 平分宽度） + 底部保存按钮 ----
+        body = ft.Row(
+            [left_col, ft.Container(width=24), right_col],
+            vertical_alignment=ft.CrossAxisAlignment.START,
+            expand=True,
+        )
         return ft.Column(
             [
                 ft.Text("设置", size=20, weight=ft.FontWeight.BOLD),
                 ft.Divider(height=8),
                 ft.Text("修改会自动保存到 数据目录/settings.json",
                         size=12, color=ft.Colors.GREY_500),
+                ft.Container(height=14),
+                body,
                 ft.Container(height=10),
-                text_field("target_base_dir", "目标文件基准目录",
-                           "模块 target 相对路径的解析基准（如 OsEasy 安装目录）"),
-                text_field("auto_import_dir", "便捷导入目录",
-                           "启动时自动把该目录里的 .toml 搬入并加载（留空=工具所在目录）"),
-                self.backup_switch,
-                self.backup_ext,
-                ft.Divider(height=20),
-                ft.Text("个性化", size=16, weight=ft.FontWeight.BOLD),
-                self.mode_dropdown,
-                self.follow_switch,
-                self.seed_grid,
+                ft.Row([save_btn], alignment=ft.MainAxisAlignment.END),
                 ft.Container(height=10),
-                save_btn,
-                ft.Container(height=20),
             ],
             scroll=ft.ScrollMode.AUTO, expand=True)
 
