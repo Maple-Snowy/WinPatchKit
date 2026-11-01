@@ -51,16 +51,22 @@ def start_screenshot_driver(page, switch_to) -> None:
                         os.remove(p)
                     except OSError:
                         pass
+                ok = True
                 try:
                     switch_to(idx)
                 except Exception:
-                    pass
+                    # 不再静默吞掉：切页失败时把堆栈打到 stderr（回传到
+                    # gui_stderr.log），否则失败帧会被误当成功、CI 假绿。
+                    ok = False
+                    import traceback
+                    traceback.print_exc()
                 await asyncio.sleep(1.2)   # 等切换 + 内容渲染稳定
                 _park_cursor()             # 把光标移出控件，避免 tooltip 入镜
                 await asyncio.sleep(0.4)   # 等 tooltip 淡出 + 光标归位
                 try:
+                    # ack 内容带成败标志："ok:<idx>" / "err:<idx>"，CI 端可感知
                     with open(ack_f, "w", encoding="utf-8") as f:
-                        f.write(str(idx))
+                        f.write(("ok" if ok else "err") + ":" + str(idx))
                 except OSError:
                     pass
             else:

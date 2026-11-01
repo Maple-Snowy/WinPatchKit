@@ -128,6 +128,7 @@ jobs:
           # 逐页截图：共 3 个页面（主页 / 模块 / 设置）
           # 每页：写 _cmd 让 GUI 切页 → 轮询 _ack 确认已切 → 截一张
           $shotDir = $env:WINPATCHKIT_GUI_SCREENSHOT_DIR
+          $failPage = -1
           for ($i = 0; $i -le 2; $i++) {
             $cmdF = Join-Path $shotDir "_cmd"
             $ackF = Join-Path $shotDir "_ack"
@@ -138,10 +139,21 @@ jobs:
               if (Test-Path $ackF) { $switched = $true; break }
               Start-Sleep -Milliseconds 500
             }
-            if (-not $switched) { Write-Host "!! 页面 $i 切页超时，仍尝试截屏" }
-            else { Write-Host "页面 $i 已切换" }
+            # ack 内容现为 "ok:<idx>" / "err:<idx>"（driver 切页成败标志）
+            $ack = ""; if ($switched) { $ack = (Get-Content $ackF -ErrorAction SilentlyContinue -Raw).Trim() }
+            if (-not $switched) {
+              Write-Host "!! 页面 $i 切页超时，仍尝试截屏"; $failPage = $i
+            }
+            elseif ($ack -like "err:*") {
+              Write-Host "!! 页面 $i 切页抛异常（ack=$ack），堆栈见 gui_stderr.log"; $failPage = $i
+            }
+            else { Write-Host "页面 $i 已切换 ($ack)" }
             Start-Sleep -Milliseconds 400   # 渲染再稳一点
             Save-Screen ("gui_screenshot_p{0}.png" -f $i)
+          }
+          if ($failPage -ge 0) {
+            Write-Host "### 页面 $failPage 切换失败，step 判红（避免假绿）"
+            exit 1
           }
 
           # 通知 driver 退出 + 清理 GUI 进程（若还没自动退出）
