@@ -219,7 +219,9 @@ class ModulePage:
                 st = results.get(info.id)
                 status = st.status if st else "missing"
                 self.statuses[i] = status
-                badge_box.content = status_badge(status)
+                # badge_box.content 是 Row([弹性块, badge, 弹性块])，只替换中间
+                # 的 badge 子项，保留居中结构（不能整体替换 content，否则居中丢失）。
+                badge_box.content.controls[1] = status_badge(status)
                 detail_text.value = st.detail if st else "未知"
                 from ..widgets.module_card import status_icon
                 icon_box.content = status_icon(status)

@@ -48,14 +48,16 @@ def make_card(info, on_delete, on_detail):
         line2 = f"id={info.id}   ·   v{info.version or '-'}"
 
     checkbox = ft.Checkbox(value=False, disabled=bool(info.parse_error))
-    # badge 居中：badge 本体纯 hug；外面套一个定宽(92)容器，容器 content 用
-    # Row 的 mainAxisAlignment=CENTER 居中。
-    # 不用 Container.alignment——官方文档明确：alignment 非 None 时 Container 会
-    # 贪婪撑满父约束，在本版本 Flet 里即使给了 width/height 仍会污染 Row 布局
-    # 导致整块塌陷（白屏）。Row 的 justifyContent 居中则无此副作用。
+    # badge 居中：badge 本体纯 hug；外面定宽(92)容器，内容用 Row 里两个
+    # expand 弹性块把 badge 夹在中间（Row 有 flex 子项就会撑满 92，两块平分
+    # 剩余空间 → badge 真正居中）。
+    # 不用 Container.alignment（官方文档：非 None 即贪婪撑满父约束，本版本会给
+    # height 仍污染 Row 布局致列表区白屏）；也不用 Row 的 alignment=CENTER
+    # （Flet 的 Row 默认 hug 不撑满，没有 MainAxisSize/Align 可强制撑满）。
     badge_box = ft.Container(
-        content=ft.Row([status_badge("pending")],
-                       alignment=ft.MainAxisAlignment.CENTER,
+        content=ft.Row([ft.Container(expand=True),
+                        status_badge("pending"),
+                        ft.Container(expand=True)],
                        vertical_alignment=ft.CrossAxisAlignment.CENTER),
         width=92)
     icon_box = ft.Container(content=status_icon("pending"), width=22)
