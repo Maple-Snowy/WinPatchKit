@@ -121,8 +121,8 @@ class SettingsPage:
             content=ft.Row(chips, wrap=True, spacing=8, run_spacing=8,
                            vertical_alignment=ft.CrossAxisAlignment.CENTER),
             padding=14,
-            border=ft.Border.all(1, ft.Colors.OUTLINE),
             border_radius=14,
+            bgcolor=ft.Colors.SURFACE_CONTAINER_LOW,
             visible=not self.follow_switch.value,
         )
 

@@ -44,7 +44,7 @@ class ModulePage:
                  save_btn],
                 vertical_alignment=ft.CrossAxisAlignment.CENTER),
             padding=ft.Padding.symmetric(horizontal=14, vertical=10),
-            border=ft.Border.all(1, ft.Colors.OUTLINE), border_radius=10)
+            border_radius=10, bgcolor=ft.Colors.SURFACE_CONTAINER_LOW)
 
         # 2) 工具条
         self.sel_count = ft.Text("已选 0", size=13, color=ft.Colors.GREY_600)

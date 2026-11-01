@@ -39,6 +39,6 @@ def make_card(info):
             vertical_alignment=ft.CrossAxisAlignment.CENTER),
         padding=ft.Padding.symmetric(horizontal=12, vertical=10),
         border_radius=10,
-        border=ft.Border.all(1, ft.Colors.OUTLINE),
+        bgcolor=ft.Colors.SURFACE_CONTAINER_LOW,
     )
     return card, checkbox, badge_box, detail_text

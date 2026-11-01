@@ -27,4 +27,4 @@ def report_view(outcome) -> ft.Container:
     return ft.Container(
         content=ft.Column([header, ft.Divider(height=8), *err_lines, *lines], spacing=4),
         padding=12, border_radius=10,
-        border=ft.Border.all(1, ft.Colors.OUTLINE))
+        bgcolor=ft.Colors.SURFACE_CONTAINER_LOW)
