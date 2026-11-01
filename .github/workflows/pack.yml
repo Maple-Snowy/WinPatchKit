@@ -1,0 +1,183 @@
+name: 打包（exe 单文件 + 运行验证截图）
+
+# 构建 WinPatchKit 为 Windows 单文件 exe，并运行该 exe 逐页截图验证，
+# 确认打包产物能正常启动、加载模块、渲染界面（防止"打包出来跑不起来"）。
+#
+# 打包用 flet pack（PyInstaller 封装）：内置 prebuilt Flet desktop client，
+# 不拖 flet build 那套 Flutter SDK（1.0.5 的 sdk/ 约 128MB），单文件 exe 体积可控。
+#
+# 触发：push 自动产出最新 exe + workflow_dispatch 手动兜底。
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+# 同一分支并发时取消旧的，省资源
+concurrency:
+  group: pack-${{ github.ref }}
+  cancel-in-progress: true
+
+# Windows runner 默认 stdout 是 cp1252，打印中文会 UnicodeEncodeError。
+# PYTHONUTF8=1 强制 Python 进入 UTF-8 模式。
+env:
+  PYTHONUTF8: "1"
+  PYTHONIOENCODING: "utf-8"
+
+jobs:
+  pack:
+    name: 打包 exe 并运行验证
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+
+      - name: 安装依赖 + flet-cli + PyInstaller
+        run: |
+          python -m pip install --upgrade pip
+          pip install -r requirements.txt
+          # flet-cli 1.0.5 与 flet-desktop 1.0.5 配套（提供 flet pack 命令 +
+          # flet-platform-assets 的 prebuilt client）。显式锁版本：否则 flet 会
+          # ensure_flet_cli_package_installed 自动装最新版。
+          pip install flet-cli==1.0.5
+          # flet-cli 不声明 PyInstaller 依赖（pack.py 里 import PyInstaller.__main__），
+          # 必须单独装。
+          pip install pyinstaller
+        shell: pwsh
+
+      - name: 打包单文件 exe（flet pack）
+        run: |
+          # 从项目根目录打包 main.py：
+          #   --yes         跳过"删除旧 build/dist"交互确认（CI 必须）
+          #   --name        产物命名 WinPatchKit.exe（默认取脚本名 main.exe）
+          #   --add-data    把 examples/ 打进 exe（单文件模式解压到 _MEIPASS/examples，
+          #                 config_files() 递归扫描依赖它）。
+          #                 分隔符：flet pack 原样透传给 PyInstaller，不做平台适配；
+          #                 PyInstaller 在 Windows 用 ';'（POSIX 才用 ':'），
+          #                 这里必须是 'examples;examples'，用 ':' 会静默打不进去。
+          flet pack main.py --yes --name WinPatchKit --add-data "examples;examples"
+        shell: pwsh
+
+      - name: 产物清单
+        run: |
+          Write-Host "=== dist 目录 ==="
+          Get-ChildItem -Recurse dist | Format-Table Mode, Length, Name
+          Write-Host "=== exe 大小 ==="
+          (Get-Item dist/WinPatchKit.exe).Length
+        shell: pwsh
+
+      # 运行打包出的 exe，逐页截图验证（逻辑与 CI 截图工作流一致，
+      # 区别是启动 dist/WinPatchKit.exe 而非 python main.py）
+      - name: 运行 exe 并截图（验证可正常启动 + 渲染）
+        shell: pwsh
+        run: |
+          # 单文件 PyInstaller 启动时要先解压 _MEIPASS，比直接跑 python 慢，
+          # 给足自动关闭兜底时长（正常远早于此截完）。
+          $env:WINPATCHKIT_GUI_AUTO_CLOSE_AFTER = "180"
+
+          # 截图驱动目录：GUI 内 driver 监听它做切页握手（见 gui/screenshot.py）
+          $env:WINPATCHKIT_GUI_SCREENSHOT_DIR = (Join-Path $PWD "shot")
+
+          # 后台启动打包出的 exe，记录进程，便于最后清理
+          $exe = Join-Path $PWD "dist/WinPatchKit.exe"
+          $proc = Start-Process -FilePath $exe `
+                  -WorkingDirectory $PWD `
+                  -PassThru -RedirectStandardOutput "pack_stdout.log" -RedirectStandardError "pack_stderr.log"
+          Write-Host "EXE PID = $($proc.Id)"
+
+          # 单文件 exe 首次启动要解压运行时，等待时间比 python 版更长
+          Write-Host "等待 45 秒让窗口渲染..."
+          Start-Sleep -Seconds 45
+
+          # 若进程已提前退出（运行报错），打印日志并让 step 失败（避免假绿）
+          if ($proc.HasExited) {
+            Write-Host "!!! exe 已退出 (Code=$($proc.ExitCode))，dump 日志:"
+            Write-Host "----- pack_stdout.log -----"; Get-Content pack_stdout.log -ErrorAction SilentlyContinue
+            Write-Host "----- pack_stderr.log -----"; Get-Content pack_stderr.log -ErrorAction SilentlyContinue
+            exit 1
+          }
+
+          # 把 GUI 窗口最大化（仅打包验证用，不影响项目代码默认窗口化）
+          Add-Type -Type 'using System; using System.Runtime.InteropServices; public class Win32 { [DllImport("user32.dll")] public static extern bool ShowWindow(IntPtr h, int n); [DllImport("user32.dll")] public static extern bool IsWindowVisible(IntPtr h); [DllImport("user32.dll")] public static extern bool EnumWindows(EnumWindowsProc lp, IntPtr l); [DllImport("user32.dll")] public static extern int GetWindowText(IntPtr h, System.Text.StringBuilder s, int n); [DllImport("user32.dll")] public static extern int GetWindowTextLength(IntPtr h); public delegate bool EnumWindowsProc(IntPtr h, IntPtr l); }'
+          $hndls = New-Object System.Collections.ArrayList
+          $cb = [Win32+EnumWindowsProc]{ param($h, $lparam)
+              if ([Win32]::IsWindowVisible($h) -and [Win32]::GetWindowTextLength($h) -gt 0) {
+                $sb = New-Object System.Text.StringBuilder([Win32]::GetWindowTextLength($h) + 1)
+                [void][Win32]::GetWindowText($h, $sb, $sb.Capacity)
+                if ($sb.ToString() -like '*WinPatchKit*') { [void]$hndls.Add($h) }
+              }
+              return $true }
+          [void][Win32]::EnumWindows($cb, [IntPtr]::Zero)
+          if ($hndls.Count -gt 0) {
+            [void][Win32]::ShowWindow($hndls[0], 3)   # SW_MAXIMIZE = 3
+            Start-Sleep -Seconds 3                     # 等最大化动画稳定
+            Write-Host "已最大化窗口（匹配 $($hndls.Count) 个）"
+          } else {
+            Write-Host "!! 未找到 WinPatchKit 窗口，跳过最大化"
+          }
+
+          # 加载 .NET 截图依赖，定义截屏函数（截整个虚拟屏到指定文件名）
+          Add-Type -AssemblyName System.Windows.Forms
+          Add-Type -AssemblyName System.Drawing
+          function Save-Screen([string]$name) {
+            $screen = [System.Windows.Forms.SystemInformation]::VirtualScreen
+            $bmp = New-Object System.Drawing.Bitmap($screen.Width, $screen.Height)
+            $g = [System.Drawing.Graphics]::FromImage($bmp)
+            $g.CopyFromScreen($screen.Location, [System.Drawing.Point]::Empty, $screen.Size)
+            $bmp.Save((Join-Path $PWD $name))
+            $g.Dispose(); $bmp.Dispose()
+            Write-Host "已保存 $name (${screen.Width}x${screen.Height})"
+          }
+
+          # 逐页截图：共 3 个页面（主页 / 模块 / 设置）
+          # 每页：写 _cmd 让 GUI 切页 → 轮询 _ack 确认已切 → 截一张
+          $shotDir = $env:WINPATCHKIT_GUI_SCREENSHOT_DIR
+          $failPage = -1
+          for ($i = 0; $i -le 2; $i++) {
+            $cmdF = Join-Path $shotDir "_cmd"
+            $ackF = Join-Path $shotDir "_ack"
+            Remove-Item $ackF -ErrorAction SilentlyContinue
+            Set-Content -Path $cmdF -Value "$i"
+            $switched = $false
+            for ($w = 0; $w -lt 24; $w++) {
+              if (Test-Path $ackF) { $switched = $true; break }
+              Start-Sleep -Milliseconds 500
+            }
+            # ack 内容现为 "ok:<idx>" / "err:<idx>"（driver 切页成败标志）
+            $ack = ""; if ($switched) { $ack = (Get-Content $ackF -ErrorAction SilentlyContinue -Raw).Trim() }
+            if (-not $switched) {
+              Write-Host "!! 页面 $i 切页超时，仍尝试截屏"; $failPage = $i
+            }
+            elseif ($ack -like "err:*") {
+              Write-Host "!! 页面 $i 切页抛异常（ack=$ack），堆栈见 pack_stderr.log"; $failPage = $i
+            }
+            else { Write-Host "页面 $i 已切换 ($ack)" }
+            Start-Sleep -Milliseconds 400   # 渲染再稳一点
+            Save-Screen ("pack_screenshot_p{0}.png" -f $i)
+          }
+          if ($failPage -ge 0) {
+            Write-Host "### 页面 $failPage 切换失败，step 判红（避免假绿）"
+            exit 1
+          }
+
+          # 通知 driver 退出 + 清理 exe 进程（若还没自动退出）
+          Set-Content -Path (Join-Path $shotDir "_stop") -Value "1"
+          if (-not $proc.HasExited) {
+            try { Stop-Process -Id $proc.Id -Force } catch { }
+          }
+
+      - name: 上传产物（exe + 截图 + 日志）
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: winpatchkit-exe
+          path: |
+            dist/WinPatchKit.exe
+            pack_screenshot_p0.png
+            pack_screenshot_p1.png
+            pack_screenshot_p2.png
+            pack_stdout.log
+            pack_stderr.log
+          if-no-files-found: warn

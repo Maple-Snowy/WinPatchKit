@@ -1,9 +1,8 @@
-name: CI
+name: CI（GUI 截图）
 
-# push 自动触发（标题 = commit message）；workflow_dispatch 保留手动兜底。
+# 手动触发：截图验证用，不再随 push 自动跑（避免每次提交白等渲染）。
+# 需要看界面时，在 GitHub Actions 页手动 Run workflow。
 on:
-  push:
-    branches: [main]
   workflow_dispatch:
 
 # 同一分支并发时取消旧的，省资源
