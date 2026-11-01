@@ -158,7 +158,6 @@ class HomePage:
         # 环境就绪度：三行检查（管理员 / 基准目录 / 可应用模块），图标+文案，
         # 值来自已有数据（_is_admin / get_settings / 探测 ready 数），不新增探测。
         self.chk_admin = self._mk_check_row()
-        self.chk_base  = self._mk_check_row()
         self.chk_ready = self._mk_check_row()
         self.content = self._build()
         self._update_checklist()
@@ -192,13 +191,7 @@ class HomePage:
         管理员、基准目录即时可算；可应用项置「检测中」，由探测完成后回填。"""
         admin = _is_admin()
         self._set_check(self.chk_admin, admin,
-                        "管理员权限" if admin else "非管理员运行")
-        try:
-            base = (services.get_settings().get("target_base_dir") or "").strip()
-        except Exception:
-            base = ""
-        self._set_check(self.chk_base, bool(base),
-                        "基准目录已设置" if base else "未设基准目录")
+                         "管理员权限" if admin else "非管理员运行")
         self._set_check(self.chk_ready, None, "检测可应用模块…")
 
     # ---- 左卡片：系统信息（静态）----
@@ -264,7 +257,7 @@ class HomePage:
                    # 填满右下角空白并回答"现在能不能打补丁"。
                    ft.Container(
                        content=ft.Column(
-                           [self.chk_admin, self.chk_base, self.chk_ready],
+                           [self.chk_admin, self.chk_ready],
                            spacing=6),
                        padding=ft.Padding.symmetric(horizontal=8, vertical=2)),
                    ft.Divider(height=10),

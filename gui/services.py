@@ -153,7 +153,7 @@ def apply_module(base_dir: str, info: ModuleInfo, backup: bool, backup_ext: str)
         return ApplyOutcome(info.id, False, False, "配置解析失败", [], str(e))
     if not base_dir:
         return ApplyOutcome(info.id, False, False, "未设置目标文件基准目录", [],
-                            "请先在“设置”中指定目标文件基准目录")
+                            "请先设置目标文件基准目录")
     spec = cfig.resolve_base(spec, base_dir)
     if not os.path.isfile(spec.target):
         return ApplyOutcome(info.id, False, False, "目标文件不存在", [],
@@ -189,7 +189,7 @@ def preview_many(base_dir: str, infos: List[ModuleInfo]) -> List[ApplyOutcome]:
             continue
         if not base_dir:
             out.append(ApplyOutcome(i.id, False, False, "未设置基准目录", [],
-                                    "请先在顶部指定目标文件基准目录"))
+                                    "请先设置目标文件基准目录"))
             continue
         spec = cfig.resolve_base(spec, base_dir)
         if not os.path.isfile(spec.target):

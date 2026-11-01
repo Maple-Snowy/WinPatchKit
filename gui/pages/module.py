@@ -1,12 +1,11 @@
 """模块页：模块列表 + 筛选/搜索 + 勾选 + 详情/删除/恢复/导出 + 批量应用。
 
 布局（从上到下，主体列表区内部滚动，B6）：
-  1) 基准目录条（label + 输入框，两行，B1）
-  2) 状态计数摘要（D3）
-  3) 筛选 Chip 组（A2 七态）+ 搜索框（A7）+ 打开目录（A5）
-  4) 工具条（左=选择类 / 右=操作类，B2；次按钮 tonal，C5）
-  5) 模块卡片列表（内滚动；hover 抬升 C1；状态图标 C3；删除 A4）
-  6) 应用 / 预览结果区（可折叠 ExpansionTile，B4）
+   1) 状态计数摘要（D3）
+   2) 筛选 Chip 组（A2 七态）+ 搜索框（A7）+ 打开目录（A5）
+   3) 工具条（左=选择类 / 右=操作类，B2；次按钮 tonal，C5）
+   4) 模块卡片列表（内滚动；hover 抬升 C1；状态图标 C3；删除 A4）
+   5) 应用 / 预览结果区（可折叠 ExpansionTile，B4）
 
 快捷键（D4）：Ctrl+R 刷新状态。
 """
@@ -48,30 +47,7 @@ class ModulePage:
 
     # ---------------------------------------------------------------- 构建
     def _build(self) -> ft.Control:
-        # 1) 基准目录条（B1：label 一行 + 输入框一行，两行布局）
-        self.base_field = ft.TextField(
-            label="目录路径",
-            hint_text="模块 target 相对路径的解析基准（留空=工具所在目录）")
-        browse_btn = ft.IconButton(ft.Icons.FOLDER_OPEN, tooltip="选择目录",
-                                   on_click=self._pick_base)
-        save_btn = ft.IconButton(ft.Icons.SAVE, tooltip="保存基准目录",
-                                 on_click=self._save_base)
-        base_card = ft.Container(
-            content=ft.Column(
-                [ft.Row([ft.Icon(ft.Icons.FOLDER_OUTLINED, size=18,
-                                 color=ft.Colors.GREY_600),
-                         ft.Text("目标文件基准目录", size=13,
-                                 weight=ft.FontWeight.BOLD,
-                                 color=ft.Colors.GREY_600)], spacing=6),
-                 ft.Container(height=8),
-                 ft.Row([ft.Container(self.base_field, expand=True),
-                         ft.Container(width=4), browse_btn, save_btn],
-                        vertical_alignment=ft.CrossAxisAlignment.CENTER)],
-                spacing=0),
-            padding=ft.Padding.symmetric(horizontal=14, vertical=12),
-            border_radius=14, bgcolor=ft.Colors.SURFACE_CONTAINER_LOW)
-
-        # 2) 状态计数摘要（D3）
+        # 1) 状态计数摘要（D3）
         self.summary_text = ft.Text("共 0 个模块", size=12, color=ft.Colors.GREY_500)
 
         # 3) 筛选 Chip 组 + 搜索框 + 打开目录
@@ -143,8 +119,7 @@ class ModulePage:
                          expand=True, scroll=ft.ScrollMode.AUTO)
 
         return ft.Column(
-            [base_card, ft.Container(height=10),
-             self.summary_text, ft.Container(height=8),
+            [self.summary_text, ft.Container(height=8),
              filter_card, ft.Container(height=10),
              self.tool_row, ft.Container(height=10),
              ft.Container(body, expand=True)],
@@ -194,7 +169,6 @@ class ModulePage:
 
     def reload(self):
         """重读模块 + 重探状态（导入后 / 切回模块页时调用）。"""
-        self.base_field.value = services.get_settings()["target_base_dir"] or ""
         self.filter_status = "all"
         self.search = ""
         self.search_field.value = ""
@@ -211,7 +185,7 @@ class ModulePage:
             return
 
         def run():
-            results = services.probe_all(self.base_field.value or "", infos)
+            results = services.probe_all(self._base(), infos)
             for i, info in enumerate(infos):
                 if i not in widgets:
                     continue
@@ -375,25 +349,13 @@ class ModulePage:
         self.page.update()
 
     # ---------------------------------------------------------------- 基准目录
-    async def _pick_base(self, e):
+    def _base(self) -> str:
+        """目标文件基准目录：从 settings.target_base_dir 读取（无 GUI 入口，
+        由底层 settings 写入，未来新方案另行赋值）。"""
         try:
-            path = await self.file_picker.get_directory_path(
-                dialog_title="选择目标文件基准目录",
-                initial_directory=self.base_field.value or None)
+            return (services.get_settings().get("target_base_dir") or "").strip()
         except Exception:
-            return
-        if not path:
-            return
-        self.base_field.value = path
-        self.page.update()
-        self._save_base(e)
-
-    def _save_base(self, e):
-        services.save_settings({"target_base_dir": self.base_field.value or ""})
-        self.page.show_dialog(ft.SnackBar(ft.Text("基准目录已保存，正在刷新状态…")))
-        self.probe()
-        if self.on_changed:
-            self.on_changed()
+            return ""
 
     # ---------------------------------------------------------------- 详情弹层（A1 + D1 + A6 按模块）
     def _show_detail(self, info):
@@ -409,7 +371,7 @@ class ModulePage:
         page.show_dialog(dlg)
 
         def run():
-            d = services.get_module_detail(self.base_field.value or "", info)
+            d = services.get_module_detail(self._base(), info)
             base = ft.Row(
                 [status_badge(d.status), ft.Container(width=10),
                  ft.Text(f"id={d.module_id}   ·   v{d.version or '-'}",
@@ -473,7 +435,7 @@ class ModulePage:
     def _restore_one(self, info):
         st = services.get_settings()
         self._pop()
-        msg = services.restore_backup(self.base_field.value or "", info,
+        msg = services.restore_backup(self._base(), info,
                                       st["backup_ext"])
         self.page.show_dialog(ft.SnackBar(ft.Text(msg)))
         self.probe()
@@ -489,7 +451,7 @@ class ModulePage:
         def run():
             okn = 0
             for i in infos:
-                msg = services.restore_backup(self.base_field.value or "", i,
+                msg = services.restore_backup(self._base(), i,
                                               st["backup_ext"])
                 if msg.startswith("已恢复"):
                     okn += 1
@@ -568,7 +530,7 @@ class ModulePage:
         self._set_report_title("预览（dry-run，不会写入磁盘）")
 
         def run():
-            outs = services.preview_many(self.base_field.value or "", sel)
+            outs = services.preview_many(self._base(), sel)
             self._render_report(outs)
             self.page.update()
 
@@ -591,7 +553,7 @@ class ModulePage:
 
         def run():
             outcomes = services.apply_many(
-                self.base_field.value or "", sel, st["backup"], st["backup_ext"])
+                self._base(), sel, st["backup"], st["backup_ext"])
             self._render_report(outcomes)
             done = sum(1 for o in outcomes if o.ok)
             ok = done == len(outcomes)

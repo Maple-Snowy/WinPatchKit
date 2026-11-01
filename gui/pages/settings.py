@@ -79,11 +79,9 @@ class SettingsPage:
                      ft.Text("基本设置", size=16, weight=ft.FontWeight.BOLD)],
                     spacing=8,
                     vertical_alignment=ft.CrossAxisAlignment.CENTER),
-                ft.Container(height=6),
-                text_field("target_base_dir", "目标文件基准目录",
-                           "模块 target 相对路径的解析基准（如 OsEasy 安装目录）"),
-                text_field("auto_import_dir", "便捷导入目录",
-                           "启动时自动把该目录里的 .toml 搬入并加载（留空=工具所在目录）"),
+                 ft.Container(height=6),
+                 text_field("auto_import_dir", "便捷导入目录",
+                            "启动时自动把该目录里的 .toml 搬入并加载（留空=工具所在目录）"),
                 self.backup_switch,
                 self.backup_ext,
             ],
@@ -207,7 +205,6 @@ class SettingsPage:
     # ---------------- 保存 + 即时应用 ----------------
     def _save(self):
         data = {
-            "target_base_dir": self._fields["target_base_dir"].value or "",
             "auto_import_dir": self._fields["auto_import_dir"].value or None,
             "backup": bool(self.backup_switch.value),
             "backup_ext": self._fields["backup_ext"].value or ".bak",
