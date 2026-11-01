@@ -17,4 +17,5 @@ def status_badge(status: str) -> ft.Container:
         border=ft.Border.all(1, color),
         border_radius=11,
         padding=ft.Padding.symmetric(horizontal=9, vertical=3),
+        alignment="CENTER",  # 定宽容器内文字居中（长文案如「目标缺失」不再偏左）
     )
