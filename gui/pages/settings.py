@@ -149,10 +149,9 @@ class SettingsPage:
             vertical_alignment=ft.CrossAxisAlignment.START,
             expand=True,
         )
+        # 页面标题「设置」由顶部 AppBar 承担（MD3 风格），内容区不再重复。
         return ft.Column(
             [
-                ft.Text("设置", size=20, weight=ft.FontWeight.BOLD),
-                ft.Divider(height=8),
                 ft.Text("修改会自动保存到 数据目录/settings.json",
                         size=12, color=ft.Colors.GREY_500),
                 ft.Container(height=14),

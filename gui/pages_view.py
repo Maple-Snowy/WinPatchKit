@@ -3,11 +3,14 @@
 集中管理三个页面实例、共享 FilePicker、内容容器，以及 switch_to / on_nav。
 底部导航栏（navigation）与本模块解耦：本模块提供 on_nav 回调与 switch_to，
 导航栏实例由 bootstrap 构建后注入到 controller.nav。
+切换 tab 时同步更新左上角 AppBar 标题（MD3 应用风格）。
 """
 from __future__ import annotations
 
 import flet as ft
 
+from . import appbar
+from .navigation import NAV_ITEMS
 from .pages.home import HomePage
 from .pages.module import ModulePage
 from .pages.settings import SettingsPage
@@ -52,6 +55,7 @@ class PageController:
             self._module.reload()
         if self.nav is not None:
             self.nav.selected_index = idx
+        appbar.set_title(self.page, NAV_ITEMS[idx]["label"])
         self.page.update()
 
     def on_nav(self, e) -> None:
