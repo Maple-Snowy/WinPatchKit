@@ -48,12 +48,16 @@ def make_card(info, on_delete, on_detail):
         line2 = f"id={info.id}   ·   v{info.version or '-'}"
 
     checkbox = ft.Checkbox(value=False, disabled=bool(info.parse_error))
-    # badge_box 固定 92×30 + alignment=CENTER（有固定宽高才不贪婪），
-    # 让 hug 的 badge 在其中居中——长文案（如「目标缺失」）不再偏左。
-    # 注意：给无固定尺寸的 Container 加 alignment 会在 Row 里贪婪撑开（白屏），
-    # 故居中必须放在这个定宽的 badge_box 上，而非 badge 本身。
-    badge_box = ft.Container(content=status_badge("pending"),
-                             width=92, height=30, alignment="CENTER")
+    # badge 居中：badge 本体纯 hug；外面套一个定宽(92)容器，容器 content 用
+    # Row 的 mainAxisAlignment=CENTER 居中。
+    # 不用 Container.alignment——官方文档明确：alignment 非 None 时 Container 会
+    # 贪婪撑满父约束，在本版本 Flet 里即使给了 width/height 仍会污染 Row 布局
+    # 导致整块塌陷（白屏）。Row 的 justifyContent 居中则无此副作用。
+    badge_box = ft.Container(
+        content=ft.Row([status_badge("pending")],
+                       alignment=ft.MainAxisAlignment.CENTER,
+                       vertical_alignment=ft.CrossAxisAlignment.CENTER),
+        width=92)
     icon_box = ft.Container(content=status_icon("pending"), width=22)
     detail_text = ft.Text("检测中…", size=11, color=ft.Colors.GREY_500,
                           no_wrap=True, overflow=ft.TextOverflow.ELLIPSIS)
