@@ -1,11 +1,11 @@
 """GUI 装配编排（单一职责：把各子模块组装到 page）。
 
 只做"调用与接线"，不实现具体逻辑——每个动作都委托给对应模块：
-    window.setup_window          窗口初始化
+    window.setup_window          窗口初始化（主题/模式/尺寸，读设置）
     pages_view.build_page_controller   页面 + 切换控制
     navigation.build_navigation  底部导航栏
-    appbar.build_appbar          顶部 AppBar
-    theme_switch.toggle_theme    明暗切换（经 appbar 按钮触发）
+    appbar.build_appbar          顶部 AppBar（无明暗切换按钮）
+    sys_theme.resolve            解析种子色 + 明暗（跟随系统 / 自定义）
     titlebar.apply_titlebar      标题栏适配（延迟到 HWND 就绪）
     screenshot.start_screenshot_driver   CI 逐页截图驱动
 """
@@ -13,13 +13,14 @@ from __future__ import annotations
 
 import flet as ft
 
-from . import window, appbar, navigation, theme_switch, titlebar, screenshot
+from . import window, appbar, navigation, sys_theme, titlebar, screenshot
+from .services import get_settings
 from .pages_view import build_page_controller
 
 
 def main(page: ft.Page):
     """ft.run 的 page 回调：装配整个 GUI。"""
-    # 1. 窗口初始化
+    # 1. 窗口初始化（标题 / 主题 / 主题模式 / 尺寸）
     window.setup_window(page)
 
     # 2. 页面 + 切换控制器
@@ -30,9 +31,8 @@ def main(page: ft.Page):
     ctrl.nav = nav
     page.navigation_bar = nav
 
-    # 4. 顶部 AppBar（明暗切换按钮回调）
-    page.appbar = appbar.build_appbar(
-        page, lambda e: theme_switch.toggle_theme(page))
+    # 4. 顶部 AppBar（无明暗切换按钮）
+    page.appbar = appbar.build_appbar(page)
 
     # 5. 内容区
     page.add(ft.SafeArea(ctrl.content))
@@ -41,8 +41,8 @@ def main(page: ft.Page):
     def _init_titlebar():
         import time
         time.sleep(1)
-        titlebar.apply_titlebar(page.title,
-                                page.theme_mode == ft.ThemeMode.DARK)
+        seed, dark = sys_theme.resolve(get_settings())
+        titlebar.apply_titlebar(page.title, dark, seed)
     page.run_thread(_init_titlebar)
 
     # 7. 延迟：首页为默认页（不走 switch_to），启动后主动加载一次模块概览

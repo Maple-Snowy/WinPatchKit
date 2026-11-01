@@ -21,6 +21,10 @@ DEFAULTS = {
     "target_base_dir": "",
     "backup": True,
     "backup_ext": ".bak",
+    # ---- 个性化（GUI 主题）----
+    "theme_mode": "dark",              # 主题模式：system / light / dark
+    "theme_follow_system": False,      # 主题色跟随系统（True=不应用自定义种子色）
+    "theme_seed": "#2E8B57",           # 自定义种子色（HEX，跟随系统=False 时生效）
 }
 
 
@@ -59,6 +63,18 @@ class Settings:
     @property
     def backup_ext(self) -> str:
         return self._get("backup_ext") or ".bak"
+
+    @property
+    def theme_mode(self) -> str:
+        return self._get("theme_mode") or "dark"
+
+    @property
+    def theme_follow_system(self) -> bool:
+        return bool(self._get("theme_follow_system"))
+
+    @property
+    def theme_seed(self) -> str:
+        return self._get("theme_seed") or "#2E8B57"
 
     def set(self, key: str, value) -> None:
         if key in DEFAULTS:

@@ -155,7 +155,8 @@ def get_settings() -> dict:
 
 def save_settings(d: dict) -> None:
     s = Settings.load()
-    for k in ("auto_import_dir", "target_base_dir", "backup", "backup_ext"):
+    for k in ("auto_import_dir", "target_base_dir", "backup", "backup_ext",
+              "theme_mode", "theme_follow_system", "theme_seed"):
         if k in d:
             s.set(k, d[k])
     s.save()

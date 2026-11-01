@@ -5,10 +5,10 @@
     from gui.app import main   # ft.run 的 page 回调（一般不直接用）
 
 各职责分门别类在独立子文件，每个只负责一项：
-    window.py         窗口初始化（标题/主题/尺寸）
-    theme.py          主题定义（种子色 + build_page_theme）+ 文案常量
-    theme_switch.py   明暗主题切换
-    appbar.py         顶部 AppBar
+    window.py         窗口初始化（标题/主题/尺寸，读设置）
+    theme.py          主题定义（种子色 + build_page_theme + 模式枚举）+ 文案常量
+    sys_theme.py      读取 Windows 系统强调色/明暗（「跟随系统」），解析 (seed, dark)
+    appbar.py         顶部 AppBar（无明暗切换按钮）
     navigation.py     底部导航栏（NAV_ITEMS 数据驱动）
     titlebar.py       Win32/DWM 标题栏适配
     pages_view.py     页面实例化 + tab 切换控制
