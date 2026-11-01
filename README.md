@@ -7,6 +7,28 @@ Windows 上的二进制 patch 工具（LSPosed 式"以模块为单位给目标�
 并可写入原始字节、NOP 等。架构把"定位"与"写入"做成可插拔策略，
 新增一种 patch 方案 = 加一个文件，内核不动。
 
+## GUI 预览
+
+图形界面基于 Flet（深色 Material 3，种子色 `#2E8B57`），共三个页面：
+
+<table>
+<tr>
+<td align="center">主页<br/><img src="gui_ci_screenshot_p0.png" width="45%"></td>
+<td align="center">模块<br/><img src="gui_ci_screenshot_p1.png" width="45%"></td>
+<td align="center">设置<br/><img src="gui_ci_screenshot_p2.png" width="45%"></td>
+</tr>
+</table>
+
+> 以上预览图由 CI 自动渲染并更新（`.github/workflows/ci.yml` 的截图 job），
+> 提交改动后会随下一次构建刷新。
+
+**启动 GUI**（引擎本身零依赖，仅 GUI 层需 flet）：
+
+```bash
+pip install flet-desktop
+python main.py            # 或 python main.py gui
+```
+
 ## 目录结构
 
 ```
@@ -186,4 +208,4 @@ VA 用于裸二进制报错、verify 不落盘等场景。
 
 - 写入策略：`jmp`（detour 砖块）、`mov_ptr`、`bytes_expr`
 - 定位策略：`import`（IAT 槽定位）、`section`（按节名+偏移）
-- 功能：函数 hook / code cave、模块注入、GUI 界面
+- 功能：函数 hook / code cave、模块注入
