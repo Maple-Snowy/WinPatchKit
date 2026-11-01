@@ -1,6 +1,8 @@
-"""设置页：双列布局（左=基本设置 / 右=个性化），顶部标题+底部保存按钮跨整行。
+"""设置页：双列布局（左=基本设置 / 右=个性化），底部保存按钮跨整行。
 
 所有设置持久化到数据目录/settings.json（走 app.Settings），修改即保存。
+两列各套一层抬升表面（SURFACE_CONTAINER_LOW，MD3E 风格：填充底色取代描边做分组），
+个性化列内部色块区再高一档（SURFACE_CONTAINER_HIGH），形成两级表面层次。
 个性化区全部使用 Flet 原生控件（Dropdown / Switch / TextField / 可点击色块），
 保存后立即应用（重建页面主题 + 重刷 DWM 标题栏）。
 """
@@ -35,6 +37,17 @@ def _normalize_hex(v: str):
     return "#" + h.upper()
 
 
+def _section_card(content: ft.Control) -> ft.Container:
+    """把一列内容包成抬升表面卡片（外容器统一 SURFACE_CONTAINER_LOW）。"""
+    return ft.Container(
+        content=content,
+        padding=ft.Padding.all(16),
+        border_radius=16,
+        bgcolor=ft.Colors.SURFACE_CONTAINER_LOW,
+        expand=True,
+    )
+
+
 class SettingsPage:
     def __init__(self, page: ft.Page, on_changed):
         self.page = page
@@ -59,9 +72,13 @@ class SettingsPage:
                                        value=bool(st.get("backup", True)))
         self.backup_ext = text_field("backup_ext", "备份后缀", ".bak")
 
-        left_col = ft.Column(
+        left_col = _section_card(ft.Column(
             [
-                ft.Text("基本设置", size=16, weight=ft.FontWeight.BOLD),
+                ft.Row(
+                    [ft.Icon(ft.Icons.SETTINGS, color=ft.Colors.PRIMARY),
+                     ft.Text("基本设置", size=16, weight=ft.FontWeight.BOLD)],
+                    spacing=8,
+                    vertical_alignment=ft.CrossAxisAlignment.CENTER),
                 ft.Container(height=6),
                 text_field("target_base_dir", "目标文件基准目录",
                            "模块 target 相对路径的解析基准（如 OsEasy 安装目录）"),
@@ -71,8 +88,7 @@ class SettingsPage:
                 self.backup_ext,
             ],
             spacing=10,
-            expand=True,
-        )
+        ))
 
         # ---- 右列：个性化 ----
         self.mode_dropdown = ft.Dropdown(
@@ -117,6 +133,7 @@ class SettingsPage:
         chips.append(self.custom_seed)
 
         # 开关打开(跟随系统)时折叠隐藏自定义区；关闭时展示
+        # 内部色块区比外容器高一档 SURFACE_CONTAINER_HIGH，形成两级表面层次
         self.seed_grid = ft.Container(
             content=ft.Row(chips, wrap=True, spacing=8, run_spacing=8,
                            vertical_alignment=ft.CrossAxisAlignment.CENTER),
@@ -126,27 +143,20 @@ class SettingsPage:
             visible=not self.follow_switch.value,
         )
 
-        # 个性化区整体包一层抬升表面（MD3E 风格：填充底色取代描边做分组）。
-        # 内部色块区再高一档 SURFACE_CONTAINER_HIGH，形成两级表面层次。
-        right_col = ft.Container(
-            content=ft.Column(
-                [
-                    ft.Row(
-                        [ft.Icon(ft.Icons.BRUSH, color=ft.Colors.PRIMARY),
-                         ft.Text("个性化", size=16, weight=ft.FontWeight.BOLD)],
-                        spacing=8,
-                        vertical_alignment=ft.CrossAxisAlignment.CENTER),
-                    ft.Container(height=6),
-                    self.mode_dropdown,
-                    self.follow_switch,
-                    self.seed_grid,
-                ],
-                spacing=10),
-            padding=ft.Padding.all(16),
-            border_radius=16,
-            bgcolor=ft.Colors.SURFACE_CONTAINER_LOW,
-            expand=True,
-        )
+        right_col = _section_card(ft.Column(
+            [
+                ft.Row(
+                    [ft.Icon(ft.Icons.BRUSH, color=ft.Colors.PRIMARY),
+                     ft.Text("个性化", size=16, weight=ft.FontWeight.BOLD)],
+                    spacing=8,
+                    vertical_alignment=ft.CrossAxisAlignment.CENTER),
+                ft.Container(height=6),
+                self.mode_dropdown,
+                self.follow_switch,
+                self.seed_grid,
+            ],
+            spacing=10,
+        ))
 
         # 文本框 / 备份开关：提交即保存
         self.backup_switch.on_change = lambda e: self._save()
@@ -155,7 +165,7 @@ class SettingsPage:
 
         save_btn = ft.FilledButton("保存设置", on_click=lambda e: self._save())
 
-        # ---- 组装：顶部标题 + 双列主体（各 expand 平分宽度） + 底部保存按钮 ----
+        # ---- 组装：双列主体（各套抬升表面，平分宽度） + 底部保存按钮 ----
         body = ft.Row(
             [left_col, ft.Container(width=24), right_col],
             vertical_alignment=ft.CrossAxisAlignment.START,
