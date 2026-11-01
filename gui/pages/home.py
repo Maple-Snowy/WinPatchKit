@@ -294,8 +294,7 @@ class HomePage:
             return
 
         def run():
-            base = services.get_settings()["target_base_dir"] or ""
-            results = services.probe_all(base, self.infos)
+            results = services.probe_all(self.infos)
             ready = patched = missing = 0
             for info in self.infos:
                 st = results.get(info.id)

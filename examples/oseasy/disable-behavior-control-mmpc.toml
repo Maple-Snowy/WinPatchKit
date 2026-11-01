@@ -13,6 +13,8 @@ id = "disable-behavior-control-mmpc"
 version = "1.0.0"
 name = "禁用行为管控（MMPC 服务，需停服务）"
 target = "MMPC.exe"
+base_dir = "C:/Program Files (x86)/Os-Easy/os-easy multicast teaching system"
+scope    = "Os-Easy多媒体网络教室"
 
 [[module.patches]]
 id    = "nop_ctrl_dispatch"

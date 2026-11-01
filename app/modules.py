@@ -143,8 +143,22 @@ def export_configs(files, dest_dir) -> List:
     return done
 
 
+def examples_dir() -> Path:
+    """项目自带的模块目录（<项目根>/examples），多级子目录均可放置 .toml。"""
+    return _tool_dir() / "examples"
+
+
 def config_files() -> List[Path]:
-    """列出数据目录/configs/ 下所有 .toml 配置。"""
+    """列出所有 .toml 模块配置。
+
+    测试阶段：递归扫描项目 examples/（含多级子目录）。
+    examples/ 不存在或为空时，回退到数据目录/configs/（旧行为）。
+    """
+    ex = examples_dir()
+    if ex.is_dir():
+        files = sorted(p for p in ex.rglob("*.toml") if _is_toml(p))
+        if files:
+            return files
     d = datadir.configs_dir()
     return sorted(p for p in d.iterdir() if _is_toml(p))
 

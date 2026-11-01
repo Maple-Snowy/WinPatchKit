@@ -13,6 +13,8 @@ id = "dual-launch-teacher"
 version = "1.0.0"
 name = "双开教师端/学生端（Teacher）"
 target = "Teacher.exe"
+base_dir = "C:/Program Files (x86)/Os-Easy/os-easy multicast teaching system"
+scope    = "Os-Easy多媒体网络教室"
 
 [[module.patches]]
 id    = "teacher_mutex"

@@ -11,6 +11,7 @@ id     = "example-demo"
 version = "1.0.0"
 name   = "example_demo"
 target = "target.exe"          # 被 patch 的目标（PE 或裸二进制）
+scope    = "示例（演示模块）"
 out    = "target_patched.exe"  # 空字符串 = 就地写 target
 
 # -------------------------------------------------------------

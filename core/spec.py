@@ -55,6 +55,8 @@ class ModuleSpec:
     id: str = ""                       # 模块ID：判断"是否同一配置"的唯一依据
     version: str = ""                  # 模块版本
     out: str = ""                      # 空则 = target 就地写
+    base_dir: str = ""                 # 默认 patch 程序路径（target 相对它解析；空=相对 toml 目录）
+    scope: str = ""                    # 适用范围（如"Os-Easy多媒体网络教室"），展示用
     patches: list = field(default_factory=list)
 
     # 说明：是否备份 / 备份文件名（后缀）不写进配置，由主程序在调用
@@ -82,11 +84,15 @@ class ModuleSpec:
             patches.append(PatchSpec.from_dict(pd, i))
 
         out = m.get("out") or ""
+        base_dir = str(m.get("base_dir", "")).strip()
+        scope = str(m.get("scope", "")).strip()
         return cls(
             name=name,
             target=target,
             id=mod_id,
             version=version,
             out=out,
+            base_dir=base_dir,
+            scope=scope,
             patches=patches,
         )

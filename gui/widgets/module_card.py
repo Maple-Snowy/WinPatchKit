@@ -67,10 +67,14 @@ def make_card(info, on_delete, on_detail):
                                tooltip="删除模块", icon_color=ft.Colors.GREY_500,
                                on_click=on_delete)
 
+    scope_row = ([ft.Text(info.scope, size=11, color=ft.Colors.PRIMARY,
+                          no_wrap=True, overflow=ft.TextOverflow.ELLIPSIS)]
+                 if info.scope else [])
     sub_col = ft.Column(
         [ft.Text(title, weight=ft.FontWeight.BOLD, size=15, no_wrap=True,
-                 overflow=ft.TextOverflow.ELLIPSIS),
-         ft.Text(line1, size=12, color=line1_color, no_wrap=True,
+                 overflow=ft.TextOverflow.ELLIPSIS)] +
+        scope_row +
+        [ft.Text(line1, size=12, color=line1_color, no_wrap=True,
                  overflow=ft.TextOverflow.ELLIPSIS)] +
         ([ft.Text(line2, size=11, color=ft.Colors.GREY_500, no_wrap=True,
                   overflow=ft.TextOverflow.ELLIPSIS)] if line2 else []) +

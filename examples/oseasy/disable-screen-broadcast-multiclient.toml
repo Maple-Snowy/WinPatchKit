@@ -12,6 +12,8 @@ id = "disable-screen-broadcast-multiclient"
 version = "1.0.0"
 name = "禁用屏幕广播（MultiClient）"
 target = "MultiClient.exe"
+base_dir = "C:/Program Files (x86)/Os-Easy/os-easy multicast teaching system"
+scope    = "Os-Easy多媒体网络教室"
 
 [[module.patches]]
 id    = "nop_screen_broadcast"

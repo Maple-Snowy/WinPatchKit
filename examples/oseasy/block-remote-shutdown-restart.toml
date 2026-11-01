@@ -13,6 +13,8 @@ id = "block-remote-shutdown-restart"
 version = "1.0.0"
 name = "拦截远程关机/重启（Student）"
 target = "Student.exe"
+base_dir = "C:/Program Files (x86)/Os-Easy/os-easy multicast teaching system"
+scope    = "Os-Easy多媒体网络教室"
 
 [[module.patches]]
 id    = "nop_shutdown_reboot"

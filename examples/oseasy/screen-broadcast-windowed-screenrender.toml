@@ -13,6 +13,8 @@ id = "screen-broadcast-windowed-screenrender"
 version = "1.0.0"
 name = "屏幕广播窗口化（ScreenRender）"
 target = "ScreenRender.exe"
+base_dir = "C:/Program Files (x86)/Os-Easy/os-easy multicast teaching system"
+scope    = "Os-Easy多媒体网络教室"
 
 [[module.patches]]
 id    = "fullscreen_zero"

@@ -185,7 +185,7 @@ class ModulePage:
             return
 
         def run():
-            results = services.probe_all(self._base(), infos)
+            results = services.probe_all(infos)
             for i, info in enumerate(infos):
                 if i not in widgets:
                     continue
@@ -348,15 +348,6 @@ class ModulePage:
         self.preview_btn.disabled = n == 0
         self.page.update()
 
-    # ---------------------------------------------------------------- 基准目录
-    def _base(self) -> str:
-        """目标文件基准目录：从 settings.target_base_dir 读取（无 GUI 入口，
-        由底层 settings 写入，未来新方案另行赋值）。"""
-        try:
-            return (services.get_settings().get("target_base_dir") or "").strip()
-        except Exception:
-            return ""
-
     # ---------------------------------------------------------------- 详情弹层（A1 + D1 + A6 按模块）
     def _show_detail(self, info):
         page = self.page
@@ -371,7 +362,7 @@ class ModulePage:
         page.show_dialog(dlg)
 
         def run():
-            d = services.get_module_detail(self._base(), info)
+            d = services.get_module_detail(info)
             base = ft.Row(
                 [status_badge(d.status), ft.Container(width=10),
                  ft.Text(f"id={d.module_id}   ·   v{d.version or '-'}",
@@ -397,8 +388,17 @@ class ModulePage:
                         ft.Text("用备份恢复此模块目标文件")],
                        alignment=ft.MainAxisAlignment.CENTER, spacing=8),
                 on_click=lambda e: self._restore_one(info))
+            scope_row = ([ft.Container(height=6),
+                          ft.Row([ft.Icon(ft.Icons.LANGUAGE, size=16,
+                                          color=ft.Colors.GREY_500),
+                                  ft.Container(width=6),
+                                  ft.Text(f"适用范围：{d.scope}", size=12,
+                                         color=ft.Colors.GREY_600)],
+                                 vertical_alignment=ft.CrossAxisAlignment.CENTER)]
+                         if d.scope else [])
             detail_body.controls = [
-                base, ft.Container(height=12),
+                base] + scope_row + [
+                ft.Container(height=12),
                 tgt_label, ft.Container(height=2), tgt_path,
                 ft.Row([tgt_state], alignment=ft.MainAxisAlignment.START),
                 ft.Container(height=12),
@@ -435,8 +435,7 @@ class ModulePage:
     def _restore_one(self, info):
         st = services.get_settings()
         self._pop()
-        msg = services.restore_backup(self._base(), info,
-                                      st["backup_ext"])
+        msg = services.restore_backup(info, st["backup_ext"])
         self.page.show_dialog(ft.SnackBar(ft.Text(msg)))
         self.probe()
 
@@ -451,8 +450,7 @@ class ModulePage:
         def run():
             okn = 0
             for i in infos:
-                msg = services.restore_backup(self._base(), i,
-                                              st["backup_ext"])
+                msg = services.restore_backup(i, st["backup_ext"])
                 if msg.startswith("已恢复"):
                     okn += 1
             self.page.show_dialog(ft.SnackBar(
@@ -530,7 +528,7 @@ class ModulePage:
         self._set_report_title("预览（dry-run，不会写入磁盘）")
 
         def run():
-            outs = services.preview_many(self._base(), sel)
+            outs = services.preview_many(sel)
             self._render_report(outs)
             self.page.update()
 
@@ -553,7 +551,7 @@ class ModulePage:
 
         def run():
             outcomes = services.apply_many(
-                self._base(), sel, st["backup"], st["backup_ext"])
+                sel, st["backup"], st["backup_ext"])
             self._render_report(outcomes)
             done = sum(1 for o in outcomes if o.ok)
             ok = done == len(outcomes)

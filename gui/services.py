@@ -42,6 +42,8 @@ class ModuleInfo:
     version: str
     target: str
     file: str
+    base_dir: str = ""       # 默认 patch 程序路径（[module].base_dir）
+    scope: str = ""          # 适用范围（[module].scope）
     parse_error: str = ""
 
 
@@ -83,13 +85,14 @@ class ModuleDetail:
     target: str
     target_exists: bool
     status: str
+    scope: str = ""
     patches: List[PatchDetail] = field(default_factory=list)
 
 
 # ---------------------------------------------------------------- 读取模块
 
 def list_modules() -> List[ModuleInfo]:
-    """列出 configs/ 下所有模块；解析失败的也列出并标记 parse_error。"""
+    """列出所有模块（测试阶段=项目 examples/ 递归）；解析失败也列出并标记。"""
     out: List[ModuleInfo] = []
     for p in modules.config_files():
         name = os.path.basename(str(p))
@@ -97,25 +100,36 @@ def list_modules() -> List[ModuleInfo]:
             spec = modules.load_config(p)
             out.append(ModuleInfo(id=spec.id, name=spec.name,
                                   version=spec.version, target=spec.target,
-                                  file=str(p)))
+                                  file=str(p), base_dir=spec.base_dir,
+                                  scope=spec.scope))
         except Exception as e:
             out.append(ModuleInfo(id=name, name=name, version="",
                                   target="", file=str(p), parse_error=str(e)))
     return out
 
 
+def _resolved_spec(info: ModuleInfo):
+    """加载 spec 并把 target/out 解析为绝对路径。
+
+    base_dir 优先取 [module].base_dir（默认 patch 程序路径）；为空则 target
+    相对该 toml 所在目录解析（沿用 resolve_target）。解析失败抛异常。
+    """
+    spec = modules.load_config(info.file)
+    base = (spec.base_dir or "").strip()
+    if base:
+        return cfig.resolve_base(spec, base)
+    return cfig.resolve_target(info.file, spec)
+
+
 # ---------------------------------------------------------------- 状态探测
 
-def _probe_one(base_dir: str, info: ModuleInfo) -> StatusInfo:
+def _probe_one(info: ModuleInfo) -> StatusInfo:
     if info.parse_error:
         return StatusInfo(info.id, ModStatus.PARSE_ERROR, detail=info.parse_error)
     try:
-        spec = modules.load_config(info.file)
+        spec = _resolved_spec(info)
     except Exception as e:
         return StatusInfo(info.id, ModStatus.PARSE_ERROR, detail=str(e))
-    if not base_dir:
-        return StatusInfo(info.id, ModStatus.MISSING, detail="未设置目标文件基准目录")
-    spec = cfig.resolve_base(spec, base_dir)
     if not os.path.isfile(spec.target):
         return StatusInfo(info.id, ModStatus.MISSING,
                           detail=f"目标不存在: {os.path.basename(spec.target)}")
@@ -132,29 +146,26 @@ def _probe_one(base_dir: str, info: ModuleInfo) -> StatusInfo:
     return StatusInfo(info.id, ModStatus.PARTIAL, ok, total, skipped, f"仅 {ok}/{total} 可定位")
 
 
-def probe_all(base_dir: str, infos: List[ModuleInfo]) -> Dict[str, StatusInfo]:
-    """探测全部模块状态（供后台线程调用）。多线程并行，模块多时提速。"""
+def probe_all(infos: List[ModuleInfo]) -> Dict[str, StatusInfo]:
+    """探测全部模块状态（供后台线程调用）。多线程并行，模块多时提速。
+    每个模块用自己的 [module].base_dir 解析目标路径。"""
     if not infos:
         return {}
     from concurrent.futures import ThreadPoolExecutor
     with ThreadPoolExecutor(max_workers=4) as ex:
-        pairs = list(ex.map(lambda i: (i.id, _probe_one(base_dir, i)), infos))
+        pairs = list(ex.map(lambda i: (i.id, _probe_one(i)), infos))
     return dict(pairs)
 
 
 # ---------------------------------------------------------------- 应用补丁
 
-def apply_module(base_dir: str, info: ModuleInfo, backup: bool, backup_ext: str) -> ApplyOutcome:
+def apply_module(info: ModuleInfo, backup: bool, backup_ext: str) -> ApplyOutcome:
     if info.parse_error:
         return ApplyOutcome(info.id, False, False, "配置解析失败", [], info.parse_error)
     try:
-        spec = modules.load_config(info.file)
+        spec = _resolved_spec(info)
     except Exception as e:
         return ApplyOutcome(info.id, False, False, "配置解析失败", [], str(e))
-    if not base_dir:
-        return ApplyOutcome(info.id, False, False, "未设置目标文件基准目录", [],
-                            "请先设置目标文件基准目录")
-    spec = cfig.resolve_base(spec, base_dir)
     if not os.path.isfile(spec.target):
         return ApplyOutcome(info.id, False, False, "目标文件不存在", [],
                             os.path.basename(spec.target))
@@ -170,12 +181,12 @@ def apply_module(base_dir: str, info: ModuleInfo, backup: bool, backup_ext: str)
                         f"总计 {okn}/{len(report.results)} 成功", lines)
 
 
-def apply_many(base_dir: str, infos: List[ModuleInfo], backup: bool,
-                backup_ext: str) -> List[ApplyOutcome]:
-    return [apply_module(base_dir, i, backup, backup_ext) for i in infos]
+def apply_many(infos: List[ModuleInfo], backup: bool,
+               backup_ext: str) -> List[ApplyOutcome]:
+    return [apply_module(i, backup, backup_ext) for i in infos]
 
 
-def preview_many(base_dir: str, infos: List[ModuleInfo]) -> List[ApplyOutcome]:
+def preview_many(infos: List[ModuleInfo]) -> List[ApplyOutcome]:
     """dry-run 预览：逐 patch 点探测但绝不落盘、不备份。供「预览」按钮。"""
     out: List[ApplyOutcome] = []
     for i in infos:
@@ -183,15 +194,10 @@ def preview_many(base_dir: str, infos: List[ModuleInfo]) -> List[ApplyOutcome]:
             out.append(ApplyOutcome(i.id, False, False, "配置解析失败", [], i.parse_error))
             continue
         try:
-            spec = modules.load_config(i.file)
+            spec = _resolved_spec(i)
         except Exception as e:
             out.append(ApplyOutcome(i.id, False, False, "配置解析失败", [], str(e)))
             continue
-        if not base_dir:
-            out.append(ApplyOutcome(i.id, False, False, "未设置基准目录", [],
-                                    "请先设置目标文件基准目录"))
-            continue
-        spec = cfig.resolve_base(spec, base_dir)
         if not os.path.isfile(spec.target):
             out.append(ApplyOutcome(i.id, False, False, "目标文件不存在", [],
                                     os.path.basename(spec.target)))
@@ -210,29 +216,25 @@ def preview_many(base_dir: str, infos: List[ModuleInfo]) -> List[ApplyOutcome]:
 
 # ---------------------------------------------------------------- 模块详情
 
-def get_module_detail(base_dir: str, info: ModuleInfo) -> ModuleDetail:
+def get_module_detail(info: ModuleInfo) -> ModuleDetail:
     """构建模块详情（基本信息 + 逐 patch 点探测，不落盘）。供详情弹层。"""
     try:
-        spec = modules.load_config(info.file)
+        spec = _resolved_spec(info)
     except Exception as e:
         return ModuleDetail(info.id, info.name or info.id, info.version,
-                            info.target, False, ModStatus.PARSE_ERROR,
+                            info.target, False, ModStatus.PARSE_ERROR, info.scope,
                             [PatchDetail("-", -1, "fail", str(e))])
-    if not base_dir:
-        return ModuleDetail(info.id, spec.name, spec.version, spec.target,
-                            False, ModStatus.MISSING)
-    spec = cfig.resolve_base(spec, base_dir)
     exists = os.path.isfile(spec.target)
     if not exists:
         return ModuleDetail(info.id, spec.name, spec.version, spec.target,
-                            False, ModStatus.MISSING)
+                            False, ModStatus.MISSING, spec.scope)
     report = applier.run(spec, write=False)
     patches = []
     for r in report.results:
         flag = "skip" if r.skipped else ("ok" if r.ok else "fail")
         patches.append(PatchDetail(r.id, r.offset, flag, r.message))
     return ModuleDetail(info.id, spec.name, spec.version, spec.target,
-                        True, _status_from_report(report), patches)
+                        True, _status_from_report(report), spec.scope, patches)
 
 
 def _status_from_report(report) -> str:
@@ -253,15 +255,12 @@ def delete_module(file, permanent: bool = False) -> str:
     return modules.delete_config(file, permanent=permanent)
 
 
-def restore_backup(base_dir: str, info: ModuleInfo, backup_ext: str) -> str:
+def restore_backup(info: ModuleInfo, backup_ext: str) -> str:
     """用 backups/ 中的原始备份覆盖回目标文件。返回提示文案。"""
     try:
-        spec = modules.load_config(info.file)
+        spec = _resolved_spec(info)
     except Exception as e:
         return f"配置解析失败：{e}"
-    if not base_dir:
-        return "未设置目标文件基准目录"
-    spec = cfig.resolve_base(spec, base_dir)
     if not os.path.isfile(spec.target):
         return f"目标文件不存在：{os.path.basename(spec.target)}"
     bak = os.path.join(str(datadir.backups_dir()),

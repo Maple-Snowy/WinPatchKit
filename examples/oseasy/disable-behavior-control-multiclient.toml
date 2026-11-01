@@ -12,6 +12,8 @@ id = "disable-behavior-control-multiclient"
 version = "1.0.0"
 name = "禁用行为管控（MultiClient）"
 target = "MultiClient.exe"
+base_dir = "C:/Program Files (x86)/Os-Easy/os-easy multicast teaching system"
+scope    = "Os-Easy多媒体网络教室"
 
 [[module.patches]]
 id    = "nop_behavior_forward"
