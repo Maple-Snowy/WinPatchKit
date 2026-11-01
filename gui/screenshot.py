@@ -12,6 +12,18 @@ from __future__ import annotations
 import os
 
 
+def _park_cursor() -> None:
+    """截图前把光标移到屏幕角落，避免悬停在带 tooltip 的控件上（CI 偶发 tooltip 入镜）。
+    仅 Windows；异常静默。"""
+    if os.name != "nt":
+        return
+    try:
+        import ctypes
+        ctypes.windll.user32.SetCursorPos(1, 1)
+    except Exception:
+        pass
+
+
 def start_screenshot_driver(page, switch_to) -> None:
     """挂 CI 截图驱动到 page 事件循环。未设环境变量时立即返回（零影响）。"""
     shot_dir = os.environ.get("WINPATCHKIT_GUI_SCREENSHOT_DIR", "").strip()
@@ -44,6 +56,8 @@ def start_screenshot_driver(page, switch_to) -> None:
                 except Exception:
                     pass
                 await asyncio.sleep(1.2)   # 等切换 + 内容渲染稳定
+                _park_cursor()             # 把光标移出控件，避免 tooltip 入镜
+                await asyncio.sleep(0.4)   # 等 tooltip 淡出 + 光标归位
                 try:
                     with open(ack_f, "w", encoding="utf-8") as f:
                         f.write(str(idx))

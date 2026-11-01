@@ -37,7 +37,6 @@ def build_appbar(page: ft.Page, initial_title: str = "主页") -> ft.AppBar:
     page._appbar_title = title
     return ft.AppBar(
         title=ft.Row([icon, ft.Container(width=8), title],
-                     alignment=ft.MainAxisAlignment.CENTER,
                      vertical_alignment=ft.CrossAxisAlignment.CENTER))
 
 

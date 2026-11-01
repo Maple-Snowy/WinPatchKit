@@ -48,7 +48,12 @@ def make_card(info, on_delete, on_detail):
         line2 = f"id={info.id}   ·   v{info.version or '-'}"
 
     checkbox = ft.Checkbox(value=False, disabled=bool(info.parse_error))
-    badge_box = ft.Container(content=status_badge("pending"), width=92)
+    # badge_box 固定 92×30 + alignment=CENTER（有固定宽高才不贪婪），
+    # 让 hug 的 badge 在其中居中——长文案（如「目标缺失」）不再偏左。
+    # 注意：给无固定尺寸的 Container 加 alignment 会在 Row 里贪婪撑开（白屏），
+    # 故居中必须放在这个定宽的 badge_box 上，而非 badge 本身。
+    badge_box = ft.Container(content=status_badge("pending"),
+                             width=92, height=30, alignment="CENTER")
     icon_box = ft.Container(content=status_icon("pending"), width=22)
     detail_text = ft.Text("检测中…", size=11, color=ft.Colors.GREY_500,
                           no_wrap=True, overflow=ft.TextOverflow.ELLIPSIS)
