@@ -122,19 +122,29 @@ class SettingsPage:
                            vertical_alignment=ft.CrossAxisAlignment.CENTER),
             padding=14,
             border_radius=14,
-            bgcolor=ft.Colors.SURFACE_CONTAINER_LOW,
+            bgcolor=ft.Colors.SURFACE_CONTAINER_HIGH,
             visible=not self.follow_switch.value,
         )
 
-        right_col = ft.Column(
-            [
-                ft.Text("个性化", size=16, weight=ft.FontWeight.BOLD),
-                ft.Container(height=6),
-                self.mode_dropdown,
-                self.follow_switch,
-                self.seed_grid,
-            ],
-            spacing=10,
+        # 个性化区整体包一层抬升表面（MD3E 风格：填充底色取代描边做分组）。
+        # 内部色块区再高一档 SURFACE_CONTAINER_HIGH，形成两级表面层次。
+        right_col = ft.Container(
+            content=ft.Column(
+                [
+                    ft.Row(
+                        [ft.Icon(ft.Icons.BRUSH, color=ft.Colors.PRIMARY),
+                         ft.Text("个性化", size=16, weight=ft.FontWeight.BOLD)],
+                        spacing=8,
+                        vertical_alignment=ft.CrossAxisAlignment.CENTER),
+                    ft.Container(height=6),
+                    self.mode_dropdown,
+                    self.follow_switch,
+                    self.seed_grid,
+                ],
+                spacing=10),
+            padding=ft.Padding.all(16),
+            border_radius=16,
+            bgcolor=ft.Colors.SURFACE_CONTAINER_LOW,
             expand=True,
         )
 
