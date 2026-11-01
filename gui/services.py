@@ -11,6 +11,8 @@ page.run_thread 放进后台线程执行，避免卡住窗口。
 from __future__ import annotations
 
 import os
+import shutil
+import sys
 from dataclasses import dataclass, field
 from typing import Dict, List, Tuple
 
@@ -63,6 +65,27 @@ class ApplyOutcome:
     error: str = ""
 
 
+@dataclass
+class PatchDetail:
+    """单个 patch 点的探测结果（供详情弹层展示）。"""
+    id: str
+    offset: int
+    status: str          # 'ok' / 'fail' / 'skip'
+    message: str
+
+
+@dataclass
+class ModuleDetail:
+    """模块详情弹层的数据源：基本信息 + 逐 patch 点探测。"""
+    module_id: str
+    name: str
+    version: str
+    target: str
+    target_exists: bool
+    status: str
+    patches: List[PatchDetail] = field(default_factory=list)
+
+
 # ---------------------------------------------------------------- 读取模块
 
 def list_modules() -> List[ModuleInfo]:
@@ -110,8 +133,13 @@ def _probe_one(base_dir: str, info: ModuleInfo) -> StatusInfo:
 
 
 def probe_all(base_dir: str, infos: List[ModuleInfo]) -> Dict[str, StatusInfo]:
-    """探测全部模块状态（供后台线程调用）。"""
-    return {i.id: _probe_one(base_dir, i) for i in infos}
+    """探测全部模块状态（供后台线程调用）。多线程并行，模块多时提速。"""
+    if not infos:
+        return {}
+    from concurrent.futures import ThreadPoolExecutor
+    with ThreadPoolExecutor(max_workers=4) as ex:
+        pairs = list(ex.map(lambda i: (i.id, _probe_one(base_dir, i)), infos))
+    return dict(pairs)
 
 
 # ---------------------------------------------------------------- 应用补丁
@@ -143,8 +171,127 @@ def apply_module(base_dir: str, info: ModuleInfo, backup: bool, backup_ext: str)
 
 
 def apply_many(base_dir: str, infos: List[ModuleInfo], backup: bool,
-               backup_ext: str) -> List[ApplyOutcome]:
+                backup_ext: str) -> List[ApplyOutcome]:
     return [apply_module(base_dir, i, backup, backup_ext) for i in infos]
+
+
+def preview_many(base_dir: str, infos: List[ModuleInfo]) -> List[ApplyOutcome]:
+    """dry-run 预览：逐 patch 点探测但绝不落盘、不备份。供「预览」按钮。"""
+    out: List[ApplyOutcome] = []
+    for i in infos:
+        if i.parse_error:
+            out.append(ApplyOutcome(i.id, False, False, "配置解析失败", [], i.parse_error))
+            continue
+        try:
+            spec = modules.load_config(i.file)
+        except Exception as e:
+            out.append(ApplyOutcome(i.id, False, False, "配置解析失败", [], str(e)))
+            continue
+        if not base_dir:
+            out.append(ApplyOutcome(i.id, False, False, "未设置基准目录", [],
+                                    "请先在顶部指定目标文件基准目录"))
+            continue
+        spec = cfig.resolve_base(spec, base_dir)
+        if not os.path.isfile(spec.target):
+            out.append(ApplyOutcome(i.id, False, False, "目标文件不存在", [],
+                                    os.path.basename(spec.target)))
+            continue
+        report = applier.run(spec, write=False)
+        lines = []
+        for r in report.results:
+            flag = "SKIP" if r.skipped else ("OK  " if r.ok else "FAIL")
+            off = f"@0x{r.offset:X}" if r.offset >= 0 else ""
+            lines.append(f"{flag}  {r.id:<20} {off}  {r.message}")
+        okn = sum(r.ok for r in report.results)
+        out.append(ApplyOutcome(i.id, report.all_ok, False,
+                                f"[预览] {okn}/{len(report.results)} 将成功", lines))
+    return out
+
+
+# ---------------------------------------------------------------- 模块详情
+
+def get_module_detail(base_dir: str, info: ModuleInfo) -> ModuleDetail:
+    """构建模块详情（基本信息 + 逐 patch 点探测，不落盘）。供详情弹层。"""
+    try:
+        spec = modules.load_config(info.file)
+    except Exception as e:
+        return ModuleDetail(info.id, info.name or info.id, info.version,
+                            info.target, False, ModStatus.PARSE_ERROR,
+                            [PatchDetail("-", -1, "fail", str(e))])
+    if not base_dir:
+        return ModuleDetail(info.id, spec.name, spec.version, spec.target,
+                            False, ModStatus.MISSING)
+    spec = cfig.resolve_base(spec, base_dir)
+    exists = os.path.isfile(spec.target)
+    if not exists:
+        return ModuleDetail(info.id, spec.name, spec.version, spec.target,
+                            False, ModStatus.MISSING)
+    report = applier.run(spec, write=False)
+    patches = []
+    for r in report.results:
+        flag = "skip" if r.skipped else ("ok" if r.ok else "fail")
+        patches.append(PatchDetail(r.id, r.offset, flag, r.message))
+    return ModuleDetail(info.id, spec.name, spec.version, spec.target,
+                        True, _status_from_report(report), patches)
+
+
+def _status_from_report(report) -> str:
+    total = len(report.results)
+    ok = sum(r.ok for r in report.results)
+    skipped = sum(r.skipped for r in report.results)
+    if ok == total:
+        return ModStatus.PATCHED if skipped == total else ModStatus.READY
+    if ok == 0:
+        return ModStatus.FAILED
+    return ModStatus.PARTIAL
+
+
+# ---------------------------------------------------------------- 删除 / 恢复 / 导出
+
+def delete_module(file, permanent: bool = False) -> str:
+    """删除模块配置（软删除进 trash / 永久删除）。返回提示文案。"""
+    return modules.delete_config(file, permanent=permanent)
+
+
+def restore_backup(base_dir: str, info: ModuleInfo, backup_ext: str) -> str:
+    """用 backups/ 中的原始备份覆盖回目标文件。返回提示文案。"""
+    try:
+        spec = modules.load_config(info.file)
+    except Exception as e:
+        return f"配置解析失败：{e}"
+    if not base_dir:
+        return "未设置目标文件基准目录"
+    spec = cfig.resolve_base(spec, base_dir)
+    if not os.path.isfile(spec.target):
+        return f"目标文件不存在：{os.path.basename(spec.target)}"
+    bak = os.path.join(str(datadir.backups_dir()),
+                       os.path.basename(spec.target) + backup_ext)
+    if not os.path.isfile(bak):
+        return f"没有可用备份：{os.path.basename(bak)}"
+    shutil.copy2(bak, spec.target)
+    return f"已恢复：{os.path.basename(spec.target)}"
+
+
+def export_selected(files: List[str], dest_dir: str) -> List[Tuple[str, str]]:
+    """把选中的 .toml 配置复制到目标目录。返回 [(文件名, 目标路径), ...]。"""
+    return modules.export_configs(files, dest_dir)
+
+
+def open_path(path: str) -> None:
+    """在系统文件管理器中打开目录（仅 Windows）。异常静默。"""
+    if not path or not os.path.isdir(path):
+        return
+    if os.name == "nt":
+        os.startfile(path)  # noqa
+    elif sys.platform == "darwin":
+        os.system(f'open "{path}"')
+    else:
+        os.system(f'xdg-open "{path}"')
+
+
+def open_configs_dir() -> None:
+    """在文件管理器中打开数据目录/configs/。异常静默。"""
+    open_path(str(datadir.configs_dir()))
 
 
 # ---------------------------------------------------------------- 设置

@@ -106,6 +106,43 @@ def auto_import(src_dir=None, move: bool = True) -> List[Path]:
     return imported
 
 
+def delete_config(file, permanent: bool = False) -> str:
+    """删除一个模块配置。
+
+    permanent=False : 软删除——移入数据目录/trash/（同名冲突时加序号），可恢复。
+    permanent=True  : 永久删除——直接 unlink。
+    返回一句话说明（供 GUI 提示）。不触碰 backups/（备份独立保留）。
+    """
+    p = Path(file)
+    if not p.is_file():
+        raise FileNotFoundError(f"配置不存在: {p.name}")
+    if permanent:
+        p.unlink()
+        return f"已删除: {p.name}"
+    trash = datadir.trash_dir()
+    dst = trash / p.name
+    n = 1
+    while dst.exists():
+        dst = trash / f"{p.stem}_{n}{p.suffix}"
+        n += 1
+    shutil.move(str(p), str(dst))
+    return f"已移至回收站: {p.name}"
+
+
+def export_configs(files, dest_dir) -> List:
+    """把选中的 .toml 配置复制到 dest_dir。返回 [(文件名, 目标路径), ...]。"""
+    dest = Path(dest_dir)
+    dest.mkdir(parents=True, exist_ok=True)
+    done = []
+    for f in files:
+        src = Path(f)
+        if not src.is_file():
+            continue
+        shutil.copy2(str(src), str(dest / src.name))
+        done.append((src.name, str(dest / src.name)))
+    return done
+
+
 def config_files() -> List[Path]:
     """列出数据目录/configs/ 下所有 .toml 配置。"""
     d = datadir.configs_dir()

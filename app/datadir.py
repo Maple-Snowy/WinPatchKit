@@ -50,3 +50,10 @@ def backups_dir() -> Path:
     d = ensure_data_dir() / "backups"
     d.mkdir(parents=True, exist_ok=True)
     return d
+
+
+def trash_dir() -> Path:
+    """回收站目录（数据目录/trash），软删除的配置暂存于此，自动创建。"""
+    d = ensure_data_dir() / "trash"
+    d.mkdir(parents=True, exist_ok=True)
+    return d
