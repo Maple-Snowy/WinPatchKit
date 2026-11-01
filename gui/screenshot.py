@@ -60,7 +60,7 @@ def start_screenshot_driver(page, switch_to) -> None:
                     ok = False
                     import traceback
                     traceback.print_exc()
-                await asyncio.sleep(1.2)   # 等切换 + 内容渲染稳定
+                await asyncio.sleep(2.0)   # 等切换 + Flet client 渲染落地到屏幕
                 _park_cursor()             # 把光标移出控件，避免 tooltip 入镜
                 await asyncio.sleep(0.4)   # 等 tooltip 淡出 + 光标归位
                 try:
