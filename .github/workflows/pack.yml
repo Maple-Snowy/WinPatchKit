@@ -229,3 +229,35 @@ jobs:
             pack_stdout.log
             pack_stderr.log
           if-no-files-found: warn
+
+      # 构建成功后 SSH 推送产物到服务器（仅成功时推，失败不推）
+      - name: 推送产物到服务器
+        if: success()
+        shell: pwsh
+        env:
+          DEPLOY_KEY: ${{ secrets.DEPLOY_SSH_KEY }}
+        run: |
+          # 1. 解码私钥（secret 里存的是 base64 编码的 ed25519 私钥）
+          $key = Join-Path $env:TEMP "deploy_key"
+          $bytes = [Convert]::FromBase64String($env:DEPLOY_KEY)
+          $txt = [System.Text.Encoding]::UTF8.GetString($bytes) -replace "`r`n", "`n"
+          [System.IO.File]::WriteAllText($key, $txt, (New-Object System.Text.UTF8Encoding $false))
+
+          # 2. SSH 连接参数
+          $remote = "root@45.207.220.121"
+          $rDir   = "/data/WinPatchKit"
+          $opts   = @('-i', $key,
+                       '-o', 'StrictHostKeyChecking=no',
+                       '-o', 'UserKnownHostsFile=NUL',
+                       '-o', 'ConnectTimeout=15')
+
+          # 3. 确保远程目录存在
+          & ssh @opts $remote "mkdir -p $rDir"
+          if ($LASTEXITCODE -ne 0) { Write-Host "!! SSH 连接失败"; exit 1 }
+
+          # 4. 推送 exe + 3 张截图
+          & scp @opts (Join-Path dist $env:EXE_NAME) "${remote}:${rDir}/"
+          & scp @opts pack_screenshot_p0.png "${remote}:${rDir}/"
+          & scp @opts pack_screenshot_p1.png "${remote}:${rDir}/"
+          & scp @opts pack_screenshot_p2.png "${remote}:${rDir}/"
+          Write-Host "已推送 $($env:EXE_NAME) + 3 截图到 ${remote}:${rDir}/"
