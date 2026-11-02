@@ -47,17 +47,65 @@ jobs:
           pip install pyinstaller
         shell: pwsh
 
-      - name: 打包单文件 exe（flet pack）
+      - name: 下载 UPX（用于压缩 exe）
         run: |
-          # 从项目根目录打包 main.py：
-          #   --yes         跳过"删除旧 build/dist"交互确认（CI 必须）
-          #   --name        产物命名 WinPatchKit.exe（默认取脚本名 main.exe）
-          #   --add-data    把 examples/ 打进 exe（单文件模式解压到 _MEIPASS/examples，
-          #                 config_files() 递归扫描依赖它）。
-          #                 分隔符：flet pack 原样透传给 PyInstaller，不做平台适配；
-          #                 PyInstaller 在 Windows 用 ';'（POSIX 才用 ':'），
-          #                 这里必须是 'examples;examples'，用 ':' 会静默打不进去。
-          flet pack main.py --yes --name WinPatchKit --add-data "examples;examples"
+          # windows-latest 不预装 UPX，从官方 release 下载 win64 版到 tools/。
+          # upx.exe 所在目录写入 GITHUB_ENV，供下一步 flet pack 用 --upx-dir 指向。
+          $upxVer = "5.1.0"
+          $url = "https://github.com/upx/upx/releases/download/v$upxVer/upx-$upxVer-win64.zip"
+          New-Item -ItemType Directory -Force -Path tools | Out-Null
+          Invoke-WebRequest -Uri $url -OutFile "tools/upx.zip" -UseBasicParsing
+          Expand-Archive -Path "tools/upx.zip" -DestinationPath "tools" -Force
+          Remove-Item "tools/upx.zip"
+          $upxDir = (Get-ChildItem -Recurse tools -Filter upx.exe | Select-Object -First 1).Directory.FullName
+          Write-Host "UPX ready at: $upxDir"
+          & "$upxDir\upx.exe" --version
+          Add-Content -Path $env:GITHUB_ENV -Value "UPX_DIR=$upxDir"
+        shell: pwsh
+
+      - name: 打包单文件 exe（flet pack + 排除项 + UPX）
+        run: |
+          # 从项目根目录打包 main.py。--pyinstaller-build-args 由 flet pack 原样
+          # 透传给 PyInstaller（flet 不做平台适配），值必须用 = 连接。
+          #
+          # 排除项（省体积）：
+          #   PIL        整包 Pillow ~13MB（含单文件 7.5MB 的 _avif.pyd）。flet 1.0.5
+          #              里 PIL 是 100% lazy import（raw_image.py 全部 try/except 包裹），
+          #              本工具又零 ft.Image/RawImage 使用，排除零风险。
+          #   test/unittest/pydoc/setuptools  标准库里用不到但被静态分析带入的大包。
+          # UPX 压缩（只压 PyInstaller 打的 PE，如 python311.dll；压不到 39.5MB 的
+          #   Flutter client，因为它是作为 zip 数据文件注入的，不是 PyInstaller 产物）：
+          #   --upx-dir      指向刚下载的 upx.exe 目录
+          #   --upx-exclude  保守排除 SSL/邮件/调试后端——UPX 压这些 dll 是已知崩溃源
+          flet pack main.py --yes --name WinPatchKit --add-data "examples;examples" `
+            "--pyinstaller-build-args=--exclude-module=PIL" `
+            "--pyinstaller-build-args=--exclude-module=test" `
+            "--pyinstaller-build-args=--exclude-module=unittest" `
+            "--pyinstaller-build-args=--exclude-module=pydoc" `
+            "--pyinstaller-build-args=--exclude-module=setuptools" `
+            "--pyinstaller-build-args=--upx-dir=$env:UPX_DIR" `
+            "--pyinstaller-build-args=--upx-exclude=ssl" `
+            "--pyinstaller-build-args=--upx-exclude=_ssl" `
+            "--pyinstaller-build-args=--upx-exclude=libcrypto-3" `
+            "--pyinstaller-build-args=--upx-exclude=libssl-3" `
+            "--pyinstaller-build-args=--upx-exclude=pdb" `
+            "--pyinstaller-build-args=--upx-exclude=email" `
+            "--pyinstaller-build-args=--upx-exclude=urllib"
+        shell: pwsh
+
+      - name: 计算 SHA256 并重命名 exe
+        run: |
+          # 产物命名 WinPatchKit_<sha7>.exe，sha7 = exe 文件内容 SHA256 前 7 位
+          # （沿用旧 build.py 惯例：hash 的是 exe 文件本身，不是 git commit）。
+          $exe = Get-ChildItem dist -Filter *.exe | Select-Object -First 1
+          if (-not $exe) { Write-Host "!! dist 下没有 exe，打包失败"; exit 1 }
+          $sha = (Get-FileHash $exe.FullName -Algorithm SHA256).Hash.ToLower()
+          $newName = "WinPatchKit_" + $sha.Substring(0, 7) + ".exe"
+          Rename-Item -Path $exe.FullName -NewName $newName
+          Write-Host "重命名: $($exe.Name) -> $newName"
+          Write-Host "SHA256: $sha"
+          # 供后续 step（运行/上传）引用
+          Add-Content -Path $env:GITHUB_ENV -Value "EXE_NAME=$newName"
         shell: pwsh
 
       - name: 产物清单
@@ -65,11 +113,11 @@ jobs:
           Write-Host "=== dist 目录 ==="
           Get-ChildItem -Recurse dist | Format-Table Mode, Length, Name
           Write-Host "=== exe 大小 ==="
-          (Get-Item dist/WinPatchKit.exe).Length
+          (Get-Item (Join-Path dist $env:EXE_NAME)).Length
         shell: pwsh
 
       # 运行打包出的 exe，逐页截图验证（逻辑与 CI 截图工作流一致，
-      # 区别是启动 dist/WinPatchKit.exe 而非 python main.py）
+      # 区别是启动 dist/WinPatchKit_<sha7>.exe 而非 python main.py）
       - name: 运行 exe 并截图（验证可正常启动 + 渲染）
         shell: pwsh
         run: |
@@ -80,8 +128,8 @@ jobs:
           # 截图驱动目录：GUI 内 driver 监听它做切页握手（见 gui/screenshot.py）
           $env:WINPATCHKIT_GUI_SCREENSHOT_DIR = (Join-Path $PWD "shot")
 
-          # 后台启动打包出的 exe，记录进程，便于最后清理
-          $exe = Join-Path $PWD "dist/WinPatchKit.exe"
+          # 后台启动打包出的 exe（重命名后的 WinPatchKit_<sha7>.exe），记录进程
+          $exe = Join-Path $PWD ("dist/" + $env:EXE_NAME)
           $proc = Start-Process -FilePath $exe `
                   -WorkingDirectory $PWD `
                   -PassThru -RedirectStandardOutput "pack_stdout.log" -RedirectStandardError "pack_stderr.log"
@@ -174,7 +222,7 @@ jobs:
         with:
           name: winpatchkit-exe
           path: |
-            dist/WinPatchKit.exe
+            dist/*.exe
             pack_screenshot_p0.png
             pack_screenshot_p1.png
             pack_screenshot_p2.png
