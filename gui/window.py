@@ -21,7 +21,10 @@ def setup_window(page: ft.Page) -> None:
 
     st = get_settings()
     seed, _dark = sys_theme.resolve(st)
+    # 浅色/深色 theme 用同一 seed 同时设置：跟随系统深色时 Flet 用 dark_theme，
+    # 只设 theme 会导致强调色在深色下不生效（与 settings._apply_theme 保持一致）。
     page.theme = theme.build_page_theme(seed)
+    page.dark_theme = theme.build_page_theme(seed)
     page.theme_mode = theme.theme_mode_enum(st.get("theme_mode") or "dark")
 
     try:

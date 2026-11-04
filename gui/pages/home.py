@@ -208,15 +208,15 @@ class HomePage:
         ]
         return ft.Card(
             content=ft.Column(
-                [ft.ListTile(
-                     leading=ft.Icon(ft.Icons.MONITOR, size=26,
-                                     color=ft.Colors.PRIMARY),
-                     title=ft.Text("系统信息", size=18,
-                                   weight=ft.FontWeight.BOLD)),
-                  ft.Divider(height=8),
-                  ft.Column(tiles, spacing=0, scroll=ft.ScrollMode.AUTO)],
-                spacing=0),
-            expand=True)
+                 [ft.ListTile(
+                      leading=ft.Icon(ft.Icons.MONITOR, size=26,
+                                      color=ft.Colors.PRIMARY),
+                      title=ft.Text("系统信息", size=18,
+                                    weight=ft.FontWeight.BOLD)),
+                   ft.Divider(height=8),
+                   ft.Column(tiles, spacing=0)],
+                  spacing=0),
+             expand=True)
 
     # ---- 右卡片：模块概览（可刷新）----
     def _build_module_card(self) -> ft.Control:
@@ -276,11 +276,12 @@ class HomePage:
             [self._build_system_card(),
              ft.Container(width=20),   # 中缝
              self._build_module_card()],
-            vertical_alignment=ft.CrossAxisAlignment.START,
-            expand=True)
-        # 外层可滚动 Column：双卡内容过高（小窗口）时整行可滚。
-        return ft.Column([row], spacing=0,
-                         scroll=ft.ScrollMode.AUTO, expand=True)
+            vertical_alignment=ft.CrossAxisAlignment.START)
+        # 不在此处 scroll/expand：滚动统一由 pages_view 的内容区 ListView 承担。
+        # Row 不设 expand：ListView 子项在横向(cross-axis)自动撑满宽度，
+        # 纵向若设 expand 会在 ListView 的无界主轴约束下触发 RenderFlex 报错。
+        # 卡片在 Row 里的 expand=True 只控制横向平分宽度（保留），纵向按内容自然高度。
+        return ft.Column([row], spacing=0)
 
     # ---- 数据刷新（切回主页时由 app 调用）----
     def reload(self):

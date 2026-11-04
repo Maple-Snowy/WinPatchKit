@@ -167,9 +167,10 @@ class SettingsPage:
         body = ft.Row(
             [left_col, ft.Container(width=24), right_col],
             vertical_alignment=ft.CrossAxisAlignment.START,
-            expand=True,
         )
         # 页面标题「设置」由顶部 AppBar 承担（MD3 风格），内容区不再重复。
+        # 不在此处 scroll/expand：滚动统一由 pages_view 的内容区 ListView 承担，
+        # 内容过高（小窗口）时整页可滚。
         return ft.Column(
             [
                 body,
@@ -177,7 +178,7 @@ class SettingsPage:
                 ft.Row([save_btn], alignment=ft.MainAxisAlignment.END),
                 ft.Container(height=10),
             ],
-            scroll=ft.ScrollMode.AUTO, expand=True)
+            spacing=0)
 
     # ---------------- 交互 ----------------
     def _pick_seed(self, hexc: str):
@@ -221,7 +222,11 @@ class SettingsPage:
     def _apply_theme(self, st: dict):
         """保存后立即应用主题：重建页面主题 + 主题模式 + 重刷标题栏。"""
         seed, dark = sys_theme.resolve(st)
+        # 浅色/深色 theme 必须用同一 seed 同时设置：
+        # 主题模式为「跟随系统」且系统为深色时，Flet 用的是 page.dark_theme，
+        # 只设 page.theme 会导致换强调色在深色下不生效。
         self.page.theme = theme.build_page_theme(seed)
+        self.page.dark_theme = theme.build_page_theme(seed)
         self.page.theme_mode = theme.theme_mode_enum(st.get("theme_mode") or "dark")
         self.seed_grid.visible = not bool(self.follow_switch.value)
         self.page.update()

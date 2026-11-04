@@ -90,12 +90,12 @@ class ModulePage:
         self.preview_btn = ft.FilledTonalButton(
             ft.Row([ft.Icon(ft.Icons.PREVIEW_OUTLINED), ft.Text("预览")],
                    alignment=ft.MainAxisAlignment.CENTER, spacing=8),
-            disabled=True, on_click=lambda e: self._preview())  # A8
+            disabled=True, on_click=self._preview)  # A8
         refresh_btn = ft.IconButton(ft.Icons.REFRESH, tooltip="刷新状态",
                                     on_click=lambda e: self.probe())
         export_btn = ft.IconButton(ft.Icons.UPLOAD_FILE,
                                    tooltip="导出选中配置（A9）",
-                                   on_click=lambda e: self._export())
+                                   on_click=self._export)
         restore_all_btn = ft.IconButton(ft.Icons.RESTORE,
                                         tooltip="一键恢复所有目标文件（用备份覆盖，A6）",
                                         on_click=lambda e: self._restore_all())
@@ -110,20 +110,20 @@ class ModulePage:
              import_btn, self.apply_btn],
             vertical_alignment=ft.CrossAxisAlignment.CENTER)
 
-        # 5) 模块列表（内滚动容器；结果区也放这里随滚，B4/B6）
+        # 5) 模块列表 + 结果区。不在此处 scroll/expand：滚动统一由 pages_view
+        # 的内容区 ListView 承担，本页按自然高度排布，列表过长时整页可滚。
         self.report_title = ft.Text("应用结果", size=14, weight=ft.FontWeight.BOLD)
         self.report_box = ft.Column([self.report_title], spacing=8, visible=False)
-        self.module_list = ft.Column(spacing=8, scroll=ft.ScrollMode.AUTO)
+        self.module_list = ft.Column(spacing=8)
 
-        body = ft.Column([self.module_list, self.report_box], spacing=8,
-                         expand=True, scroll=ft.ScrollMode.AUTO)
+        body = ft.Column([self.module_list, self.report_box], spacing=8)
 
         return ft.Column(
             [self.summary_text, ft.Container(height=8),
              filter_card, ft.Container(height=10),
              self.tool_row, ft.Container(height=10),
-             ft.Container(body, expand=True)],
-            spacing=0, expand=True)
+             body],
+            spacing=0)
 
     # ---------------------------------------------------------------- 数据刷新
     def render_list(self):
@@ -275,9 +275,9 @@ class ModulePage:
                      "· 便捷导入：扫描工具同级目录 / 便捷导入目录\n"
                      "· 以模块ID判重：同 id 已存在则覆盖，否则新增",
                      size=13, color=ft.Colors.GREY_400),
-                 ft.Container(height=10),
-                 ft.Row([pick_btn, auto_btn], spacing=12, wrap=True)],
-                spacing=0))
+                  ft.Container(height=10),
+                  ft.Row([pick_btn, auto_btn], spacing=12, wrap=True)],
+                spacing=0, tight=True))
         self.page.show_dialog(dlg)
 
     def _pop(self):
@@ -351,11 +351,13 @@ class ModulePage:
     # ---------------------------------------------------------------- 详情弹层（A1 + D1 + A6 按模块）
     def _show_detail(self, info):
         page = self.page
+        # 弹窗内容 Column 必须 tight=True：Flet 1.0.5 Column 默认 tight=False 会
+        # 纵向撑满有界高度（哪怕只有一行字也占满），tight=True 才按内容自适应。
         detail_body = ft.Column(
             [ft.Row([ft.ProgressRing(width=22, height=22)]),
              ft.Container(height=8),
              ft.Text("正在探测 patch 点…", size=13, color=ft.Colors.GREY_500)],
-            spacing=0)
+            spacing=0, tight=True)
         dlg = ft.AlertDialog(
             title=ft.Text(info.name or info.id),
             content=ft.Container(content=detail_body, width=460, padding=10))
@@ -471,11 +473,11 @@ class ModulePage:
             title=ft.Text("删除模块？"),
             content=ft.Column(
                 [ft.Text(f"「{info.name or info.id}」的配置文件将被移除。", size=14),
-                 ft.Container(height=6),
-                 ft.Text("已备份的原始文件不受影响（保存在 backups/）。",
-                         size=12, color=ft.Colors.GREY_500),
-                 ft.Container(height=12), perm_row],
-                spacing=0),
+                  ft.Container(height=6),
+                  ft.Text("已备份的原始文件不受影响（保存在 backups/）。",
+                          size=12, color=ft.Colors.GREY_500),
+                  ft.Container(height=12), perm_row],
+                spacing=0, tight=True),
             actions=[
                 ft.TextButton("取消", on_click=self._pop),
                 ft.FilledButton(
