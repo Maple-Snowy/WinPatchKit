@@ -43,21 +43,35 @@ class PageController:
         self._module = ModulePage(page, on_changed, self.file_picker)
         self._settings = SettingsPage(page, on_changed)
         self.pages = [self.home, self._module, self._settings]
-        # 内容区统一套一层 ListView 作为唯一滚动视口（Flet 官方滚动控件）：
-        # 页面内容按自然高度排布，超出窗口高度时可上下滚动。
-        # 不各页自建 Column(scroll)：Column 的 scroll 主轴是无限高度约束，
-        # 内嵌 expand=True 的子项会与之冲突，导致"内容超出却滚不动"。
-        # 注意：ListView 的子项参数是 controls（列表），没有 content 参数。
-        self.content = ft.ListView(
-            controls=[self.home.content],
+        # 内容区结构：AnimatedSwitcher(FADE) > ListView（唯一滚动视口）。
+        #  - ListView：页面内容按自然高度排布，超出窗口高度时可上下滚动。
+        #    不各页自建 Column(scroll)：Column 的 scroll 主轴是无限高度约束，
+        #    内嵌 expand=True 的子项会与之冲突，导致"内容超出却滚不动"。
+        #    注意：ListView 的子项参数是 controls（列表），没有 content 参数。
+        #  - AnimatedSwitcher：切 tab 时换它的 content（一个全新的 ListView），
+        #    Flet 自动在新旧内容之间做交叉淡入淡出（FADE）。
+        self.content = ft.AnimatedSwitcher(
+            content=self._build_content_list(self.home.content),
+            transition=ft.AnimatedSwitcherTransition.FADE,
+            duration=300,
+            expand=True)
+
+    @staticmethod
+    def _build_content_list(page_content) -> ft.ListView:
+        """构建一个页面内容 ListView（唯一滚动视口）。切 tab 时新建并替换。"""
+        return ft.ListView(
+            controls=[page_content],
             expand=True,
             spacing=0,
             padding=ft.Padding.all(16))
 
     def switch_to(self, idx: int) -> None:
         """切到第 idx 个 tab 并刷新其数据（导航栏 / 主页按钮 / CI 驱动共用）。"""
-        # ListView 切页：替换 controls 列表（ListView 无 content 属性）。
-        self.content.controls = [self.pages[idx].content]
+        # 切页：给 AnimatedSwitcher 换一个新 ListView 作 content，
+        # Flet 自动在旧、新两个 ListView 之间做 FADE 交叉淡变。
+        # 页面内容控件（pages[idx].content）本身被复用，不重建。
+        self.content.content = self._build_content_list(
+            self.pages[idx].content)
         if idx == 0:
             self.home.reload()
         elif idx == 1:

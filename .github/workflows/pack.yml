@@ -202,7 +202,10 @@ jobs:
               Write-Host "!! 页面 $i 切页抛异常（ack=$ack），堆栈见 pack_stderr.log"; $failPage = $i
             }
             else { Write-Host "页面 $i 已切换 ($ack)" }
-            Start-Sleep -Milliseconds 400   # 渲染再稳一点
+            # 切页现在带 300ms 的 FADE 淡入淡出动画：ack 在 page.update() 之后才写，
+            # 动画从下一渲染帧才开始。留足 > 动画时长 + 消息/首帧调度的余量，
+            # 确保截图落在淡变结束之后，不会截到半透明的过渡帧。
+            Start-Sleep -Milliseconds 600
             Save-Screen ("pack_screenshot_p{0}.png" -f $i)
           }
           if ($failPage -ge 0) {
