@@ -230,8 +230,13 @@ jobs:
             pack_stderr.log
           if-no-files-found: warn
 
-      # 构建成功后 SSH 推送产物到服务器（仅成功时推，失败不推）
-      - name: 推送产物到服务器
+      # 构建成功后 SSH 推送产物到服务器（仅成功时推，失败不推）。
+# 每次构建归到一个「与 exe 同名」的子文件夹（去 .exe 后缀），避免根目录堆满：
+#   /data/WinPatchKit/WinPatchKit_<sha7>/
+#     ├─ WinPatchKit_<sha7>.exe
+#     ├─ pack_screenshot_p0/1/2.png
+#     └─ pack_stdout.log / pack_stderr.log
+      - name: 推送产物到服务器（按版本归档）
         if: success()
         shell: pwsh
         env:
@@ -245,19 +250,26 @@ jobs:
 
           # 2. SSH 连接参数
           $remote = "root@45.207.220.121"
-          $rDir   = "/data/WinPatchKit"
+          $rRoot  = "/data/WinPatchKit"
+          # 本次产物目录 = exe 文件名去掉 .exe 后缀（WinPatchKit_<sha7>），
+          # 每次 sha 不同 → 天然按构建隔离，互不覆盖。
+          $ver    = $env:EXE_NAME -replace '\.exe$', ''
+          $rDir   = "$rRoot/$ver"
           $opts   = @('-i', $key,
                        '-o', 'StrictHostKeyChecking=no',
                        '-o', 'UserKnownHostsFile=NUL',
                        '-o', 'ConnectTimeout=15')
 
-          # 3. 确保远程目录存在
-          & ssh @opts $remote "mkdir -p $rDir"
-          if ($LASTEXITCODE -ne 0) { Write-Host "!! SSH 连接失败"; exit 1 }
+          # 3. 确保「根目录 + 本次版本目录」都存在
+          & ssh @opts $remote "mkdir -p '$rDir'"
+          if ($LASTEXITCODE -ne 0) { Write-Host "!! SSH 连接失败或建目录失败"; exit 1 }
 
-          # 4. 推送 exe + 3 张截图
+          # 4. 推送本次全部产物到版本目录
           & scp @opts (Join-Path dist $env:EXE_NAME) "${remote}:${rDir}/"
           & scp @opts pack_screenshot_p0.png "${remote}:${rDir}/"
           & scp @opts pack_screenshot_p1.png "${remote}:${rDir}/"
           & scp @opts pack_screenshot_p2.png "${remote}:${rDir}/"
-          Write-Host "已推送 $($env:EXE_NAME) + 3 截图到 ${remote}:${rDir}/"
+          & scp @opts pack_stdout.log "${remote}:${rDir}/"
+          & scp @opts pack_stderr.log "${remote}:${rDir}/"
+          Write-Host "已推送本次产物到 ${remote}:${rDir}/ :"
+          & ssh @opts $remote "ls -lh '$rDir'"
